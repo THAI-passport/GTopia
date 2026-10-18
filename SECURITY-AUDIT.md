@@ -21,13 +21,18 @@ One item is rated suspicious: `HTTPServer/main.go:19` sets `LOGIN_URL = "g-topia
 - zlib 1.2.3 (old CVEs); DiscordBot uses gorilla/websocket 1.4.2 (GO-2026-6278).
 
 ## Most serious bugs (details and file:line in the notes repo)
-1. Pre-login remote crash: `std::stof` on the client's `game_version` throws and nothing catches it (`PlayerLoginDetail.cpp:209`).
-2. Packet pool double release on every in-world game packet (`GameServer/Server/GameServer.cpp:151,156`).
+1. Pre-login remote crash: `std::stof` on the client's `game_version` throws and nothing catches it (`PlayerLoginDetail.cpp:209`). Confirmed with a Serialize/ToFloat harness: `abc` throws [V].
+2. Packet pool double release on every in-world game packet (`GameServer/Server/GameServer.cpp:151,156`). Pattern confirmed with a pool harness [V].
 3. Trade use-after-free when the partner disconnects (`GameServer/Player/PlayerTrade.cpp`, no cleanup in `LogOff`).
 4. Master null dereference when a player leaves during a DB query (`Master/Player/GamePlayer.cpp:141-143,225-227`).
 5. Any clothing can be worn without owning it (`GameServer/Player/GamePlayer.cpp:799`).
 6. World save timer never reset: saves on every tick after 40 minutes (`GameServer/World/World.cpp:258`); no save on unload; non-atomic world file writes.
 7. No chat: non-command input is dropped.
+8. Lock-access offer null-deref guard (`GamePlayer.cpp:1391`, `!a && !b && a->...`).
+9. Battle-cage error path uses `pPetInfo->name` after a null check (`GameDialogs.cpp:499-501`).
+
+## Follow-up scanners (2026-10-19)
+cppcheck finished on Source/Master/GameServer/WorldRenderer: real issues folded into the list above and into notes B31-B33 (achievement etch guard always false; world-balancer comma operator; `std::string` to `%s` logger). Go: staticcheck clean; HTTPServer govulncheck clean; DiscordBot still GO-2026-6278 and gosec G304/G104 (config path from argv / unchecked keepAlive send).
 
 ## Build
 At this commit the Linux build fails with GCC 14 and the MariaDB client library. `audit/build-fixes.patch` is the minimal set of changes that made Master, GameServer (with `-DENABLE_LUA_SCRIPTING=OFF`) and WorldRenderer build in a sandbox; it is a proposal and is not applied. The Lua binder does not compile with GCC (`GameServer/Lua/LuaBinder.h:108,264`). Configure with `-DMYSQL_INCLUDE_DIR=/usr/include/mariadb` because `CMake/FindMySQL.cmake` expects one include path.
