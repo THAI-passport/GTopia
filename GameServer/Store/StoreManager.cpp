@@ -1,4 +1,5 @@
 #include "StoreManager.h"
+#include "Holiday/HolidayManager.h"
 #include "IO/Log.h"
 #include "Item/ItemInfoManager.h"
 #include "Math/Math.h"
@@ -8,8 +9,28 @@ StoreManager::StoreManager() {}
 
 StoreManager::~StoreManager() {}
 
+int32 StoreEntry::GetCost(GamePlayer* pPlayer)
+{
+    int32 finalCost = cost;
+
+    if (!pPlayer)
+        return finalCost;
+
+    if (code == "upgrade_backpack")
+    {
+        // initial inventory size is 16 and giving 10 spaces every purchase
+        int32 upgradeCount = (pPlayer->GetInventory().GetInventoryCapacity() - 16) / 10;
+        finalCost = (upgradeCount * upgradeCount * 100) + 100;
+    }
+
+    return finalCost;
+}
+
 bool StoreManager::Load(const string& filePath)
 {
+    m_storeEntries->clear();
+    m_storeSearch.clear();
+
     ConfigDB cfg;
     if (!cfg.Load(filePath))
         return false;
@@ -152,6 +173,20 @@ bool StoreManager::Load(const string& filePath)
                     i++;
                     continue;
                 }
+
+                if (ruleKey == "HOLIDAY")
+                {
+                    if (!line.Has(i + 1))
+                    {
+                        LOGGER_LOG_ERROR("Error on HOLIDAY line %d", line.lineNumber);
+                        return false;
+                    }
+
+                    pEntry->holidayKey = line.GetString(i + 1);
+
+                    i++;
+                    continue;
+                }
             }
 
             continue;
@@ -200,54 +235,69 @@ bool StoreManager::PurchaseItem(GamePlayer* pPlayer, const string& entryCode)
         return false;
     }
 
+    bool isUpgradeBackpack = (pStoreEntry->code == "upgrade_backpack");
+
     uint32 epochNow = Time::GetTimeSinceEpoch();
     if (pStoreEntry->rule.disabled || pStoreEntry->rule.startTime > 0 && epochNow < pStoreEntry->rule.startTime ||
-        pStoreEntry->rule.endTime > 0 && epochNow > pStoreEntry->rule.endTime)
+        pStoreEntry->rule.endTime > 0 && epochNow > pStoreEntry->rule.endTime ||
+        isUpgradeBackpack && pPlayer->GetInventory().GetInventoryCapacity() >= 396 ||
+        (!pStoreEntry->holidayKey.empty() && !GetHolidayManager()->IsHolidayActive(pStoreEntry->holidayKey)))
     {
         LOGGER_LOG_WARN("%s tried to buy %s but breaking the rule?!", pPlayer->GetRawName().c_str(), entryCode.c_str());
         return false;
     }
 
-    if (pStoreEntry->cost < 0)
+    int32 cost = pStoreEntry->GetCost(pPlayer);
+
+    if (cost == 0)
+    {
+        pPlayer->SendOnStorePurchaseResult("Something went wrong while calculating the cost.");
+        return false;
+    }
+    else if (cost < 0)
     {
         uint8 tokenCount = pPlayer->GetInventory().GetCountOfItem(ITEM_ID_GROWTOKEN);
-        if ((-pStoreEntry->cost) > tokenCount)
+        if ((-cost) > tokenCount)
         {
             pPlayer->SendOnStorePurchaseResult("You can't afford " + pStoreEntry->name + "! You're `$" +
-                                               ToString(pStoreEntry->cost - tokenCount) + "`` Growtokens short.");
+                                               ToString((-cost) - tokenCount) + "`` Growtokens short.");
             pPlayer->PlaySFX("bleep_fail.wav");
             return false;
         }
     }
     else
     {
-        if (pStoreEntry->cost > pPlayer->GetGems())
+        if (cost > pPlayer->GetGems())
         {
             pPlayer->SendOnStorePurchaseResult("You can't afford " + pStoreEntry->name + "! You're `$" +
-                                               ToString(pStoreEntry->cost - pPlayer->GetGems()) + "`` Gems short.");
+                                               ToString(cost - pPlayer->GetGems()) + "`` Gems short.");
             pPlayer->PlaySFX("bleep_fail.wav");
             return false;
         }
     }
 
-    if (pStoreEntry->items.empty())
+    if (pStoreEntry->items.empty() && !isUpgradeBackpack)
     {
         pPlayer->SendOnStorePurchaseResult("Purchasing error, can't find your items!");
         pPlayer->PlaySFX("bleep_fail.wav");
         return false;
     }
 
-    uint32 slotNeeded = pStoreEntry->items.size();
-    if (pStoreEntry->rule.randomCount > 0)
-        slotNeeded = pStoreEntry->rule.randomCount;
-
     PlayerInventory& inventory = pPlayer->GetInventory();
-    if (inventory.GetInventorySize() < slotNeeded)
+
+    if (!isUpgradeBackpack)
     {
-        pPlayer->SendOnStorePurchaseResult("You'll need " + ToString(pStoreEntry->rule.randomCount) +
-                                           " slots free to buy that");
-        pPlayer->PlaySFX("bleep_fail.wav");
-        return false;
+        uint32 slotNeeded = pStoreEntry->items.size();
+        if (pStoreEntry->rule.randomCount > 0)
+            slotNeeded = pStoreEntry->rule.randomCount;
+
+        if (inventory.GetInventoryCapacity() < slotNeeded)
+        {
+            pPlayer->SendOnStorePurchaseResult("You'll need " + ToString(pStoreEntry->rule.randomCount) +
+                                               " slots free to buy that");
+            pPlayer->PlaySFX("bleep_fail.wav");
+            return false;
+        }
     }
 
     std::vector<int32> randItems;
@@ -293,28 +343,33 @@ bool StoreManager::PurchaseItem(GamePlayer* pPlayer, const string& entryCode)
     }
 
     string purchaseResult;
-    if (pStoreEntry->cost < 0)
+    if (cost < 0)
     {
-        pPlayer->ModifyInventoryItem(ITEM_ID_GROWTOKEN, pStoreEntry->cost);
-        purchaseResult += "You've purchased " + pStoreEntry->name + " for `$" + ToString(pStoreEntry->cost) +
+        pPlayer->ModifyInventoryItem(ITEM_ID_GROWTOKEN, cost);
+        purchaseResult += "You've purchased " + pStoreEntry->name + " for `$" + ToString(cost) +
                           "`` Growtokens\nYou have `$" + ToString(inventory.GetCountOfItem(ITEM_ID_GROWTOKEN)) +
                           "`` Growtokens left.";
+        LOGGER_LOG_INFO("Player %s (%d) bought %s from store %d tokens left", pPlayer->GetRawName().c_str(),
+                        pPlayer->GetUserID(), pStoreEntry->code.c_str(), inventory.GetCountOfItem(ITEM_ID_GROWTOKEN));
     }
     else
     {
-        pPlayer->ModifyGems(-pStoreEntry->cost, true);
-        purchaseResult += "You've purchased " + pStoreEntry->name + " for `$" + ToString(pStoreEntry->cost) +
+        pPlayer->ModifyGems(-cost, true);
+        purchaseResult += "You've purchased " + pStoreEntry->name + " for `$" + ToString(cost) +
                           "`` Gems\nYou have `$" + ToString(pPlayer->GetGems()) + "`` Gems left.";
+        LOGGER_LOG_INFO("Player %s (%d) bought %s from store %d gems left", pPlayer->GetRawName().c_str(),
+                        pPlayer->GetUserID(), pStoreEntry->code.c_str(), pPlayer->GetGems());
     }
     pPlayer->SendOnConsoleMessage(purchaseResult);
 
     if (pStoreEntry->rule.randomCount > 0)
     {
-        purchaseResult += "\n\n`5Received: ``" + GivePurchasedItemsAndGetGivensAsStr(pPlayer, randItems);
+        purchaseResult += "\n\n`5Received: ``" + GivePurchasedItemsAndGetGivensAsStr(pPlayer, randItems, pStoreEntry);
     }
     else
     {
-        purchaseResult += "\n\n`5Received: ``" + GivePurchasedItemsAndGetGivensAsStr(pPlayer, pStoreEntry->items);
+        purchaseResult +=
+            "\n\n`5Received: ``" + GivePurchasedItemsAndGetGivensAsStr(pPlayer, pStoreEntry->items, pStoreEntry);
     }
 
     pPlayer->SendOnStorePurchaseResult(purchaseResult);
@@ -322,17 +377,24 @@ bool StoreManager::PurchaseItem(GamePlayer* pPlayer, const string& entryCode)
     return true;
 }
 
-string StoreManager::GivePurchasedItemsAndGetGivensAsStr(GamePlayer* pPlayer, const std::vector<int32>& items)
+string StoreManager::GivePurchasedItemsAndGetGivensAsStr(GamePlayer* pPlayer, const std::vector<int32>& items,
+                                                         StoreEntry* pStoreEntry)
 {
-    if (!pPlayer)
+    if (!pPlayer || !pStoreEntry)
         return "";
+
+    PlayerInventory& inventory = pPlayer->GetInventory();
+    if (pStoreEntry->code == "upgrade_backpack")
+    {
+        inventory.SetInventoryCapacity(inventory.GetInventoryCapacity() + 10);
+        pPlayer->SendInventoryPacket();
+        return "Backpack Upgrade";
+    }
 
     if (items.size() % 2 != 0)
         return "";
 
     ItemInfoManager* pItemMgr = GetItemInfoManager();
-    PlayerInventory& inventory = pPlayer->GetInventory();
-
     string out;
 
     for (uint16 i = 0; i + 1 < items.size(); i += 2)
@@ -388,13 +450,9 @@ StoreEntry* StoreManager::GetStoreEntryByCode(const string& entryCode)
         if (it->second)
         {
             if (!it->second->isTab && it->second->code == entryCode)
-            {
                 return it->second;
-            }
             else if (it->second->isTab)
-            {
                 return it->second;
-            }
         }
 
         return nullptr;
@@ -411,7 +469,7 @@ void StoreManager::BuildStore(GamePlayer* pPlayer, DialogBuilder& db, eStoreTab 
     string welcomeDesc;
     if (storeTab == STORE_TAB_MAIN_MENU)
     {
-        welcomeDesc = "Welcome to the `2Growtopia Store``! Select the item you\'d like more info on.`o ";
+        welcomeDesc = "Welcome to the `2Growtopia Store``! Select the item you'd like more info on.`o ";
         if (pPlayer->HasFlag(PLAYER_FLAG_SUPPORTER) || pPlayer->HasFlag(PLAYER_FLAG_SUPER_SUPPORTER))
         {
             welcomeDesc += "`wThanks for being a supporter of Growtopia!\n";
@@ -419,7 +477,7 @@ void StoreManager::BuildStore(GamePlayer* pPlayer, DialogBuilder& db, eStoreTab 
         else
         {
             welcomeDesc += "`wWant to get `5Supporter`` status? Any Gem purchase (or `57,000`` Gems earne d with free "
-                           "`5Tapjoy`` offers) will make you one. You\'ll get new skin colors,  the `5Recycle`` tool "
+                           "`5Tapjoy`` offers) will make you one. You'll get new skin colors,  the `5Recycle`` tool "
                            "to convert unwanted items into Gems, and more bonuses!";
         }
     }
@@ -477,8 +535,17 @@ void StoreManager::BuildStoreEntry(GamePlayer* pPlayer, DialogBuilder& db, Store
     if (pEntry->rule.endTime > 0 && epochNow > pEntry->rule.endTime)
         return;
 
-    db.AddButton(pEntry->code, pEntry->name, pEntry->banner, pEntry->description, pEntry->posX, pEntry->posY,
-                 pEntry->cost);
+    if (!pEntry->holidayKey.empty() && !GetHolidayManager()->IsHolidayActive(pEntry->holidayKey))
+        return;
+
+    int32 cost = pEntry->GetCost(pPlayer);
+    if (cost == 0)
+        return;
+
+    if (pEntry->code == "upgrade_backpack" && pPlayer->GetInventory().GetInventoryCapacity() >= 396)
+        return;
+
+    db.AddButton(pEntry->code, pEntry->name, pEntry->banner, pEntry->description, pEntry->posX, pEntry->posY, cost);
 }
 
 StoreEntry* StoreManager::GetEntryByCodeRaw(const string& entryCode)

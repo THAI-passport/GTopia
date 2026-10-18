@@ -11,3 +11,9 @@ void GameMessage_RefreshTributeData(GamePlayer* pPlayer, ParsedTextPacket<38>& p
 void GameMessage_JoinRequest(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
 void GameMessage_Respawn(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
 void GameMessage_RespawnSpike(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+void GameMessage_ModTrade(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+void Gamemessage_RemTrade(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+void GameMessage_TradeAccept(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+void GameMessage_TradeCancel(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+void GameMessage_TradeLock(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+void GameMessage_TradeStarted(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);

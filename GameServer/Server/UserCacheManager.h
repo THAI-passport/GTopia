@@ -3,13 +3,7 @@
 #include "Database/Table/PlayerDBTable.h"
 #include "Precompiled.h"
 #include "Utils/Timer.h"
-#include <array>
 #include <unordered_set>
-
-/**
- * gonna used for datbaase parts only
- * to fetch some details from database player, worlds or any
- */
 
 class GamePlayer;
 
@@ -21,7 +15,8 @@ enum eCacheRequestType : uint8
     CACHE_REQ_ACHIEVEMENT_BLOCK_PUNCH,
     CACHE_REQ_MAILBOX_BLOCK,
     CACHE_REQ_BULLETIN_BLOCK,
-    CACHE_REQ_DONATION_BOX_BLOCK
+    CACHE_REQ_DONATION_BOX_BLOCK,
+    CACHE_REQ_WORLD_ENTER_STAT_MESSAGE
 };
 
 union CacheParam
@@ -37,8 +32,8 @@ union CacheParam
     CacheParam(float val) : f32(val) {}
     CacheParam(bool val) : b(val) {}
 
-    int32 GetInt32() const { return i32; }
-    uint32 GetUInt32() const { return u32; }
+    int32 GetINT() const { return i32; }
+    uint32 GetUINT() const { return u32; }
     float GetFloat() const { return f32; }
     bool GetBool() const { return b; }
 };
@@ -46,8 +41,8 @@ union CacheParam
 struct UserMetadata
 {
     uint32 userID = 0;
-    string name;
-    string displayName;
+    std::string name;
+    std::string displayName;
     uint32 roleID = 0;
     Timer cacheTime;
 };
@@ -58,14 +53,12 @@ public:
     UserCacheManager();
     ~UserCacheManager();
 
-public:
     static UserCacheManager* GetInstance()
     {
         static UserCacheManager instance;
         return &instance;
     }
 
-public:
     void Init(uint32 maxExpectedPlayers);
 
     UserMetadata* GetMetadata(uint32 userID);
@@ -78,10 +71,9 @@ public:
 private:
     struct PendingRequest
     {
-        std::vector<uint32> missingUserIDs;
         uint32 missingCount = 0;
         eCacheRequestType reqType = CACHE_REQ_NONE;
-        std::array<CacheParam, 5> params;
+        std::array<CacheParam, 5> params{};
         char textParam[32] = {0};
 
         void SetText(const char* src)
@@ -91,22 +83,14 @@ private:
                 textParam[0] = '\0';
                 return;
             }
-
-            usize len = strnlen(src, 32);
-            if (len >= 32)
-            {
-                textParam[0] = '\0';
-                return;
-            }
-
-            memcpy(textParam, src, len);
-            textParam[len] = '\0';
+            snprintf(textParam, sizeof(textParam), "%s", src);
         }
     };
 
     void ExecuteRequest(uint32 playerNetID, const PendingRequest& request);
     void OnTriedPunchedOrPlaceLockedArea(GamePlayer* pPlayer, const PendingRequest& request);
     void OnPunchedAchievementBlock(GamePlayer* pPlayer, const PendingRequest& request);
+    void OnPlayerEnteredWorldStatusMessage(GamePlayer* pPlayer, const PendingRequest& request);
 
     std::unordered_map<uint32, UserMetadata> m_cache;
     std::unordered_map<uint32, PendingRequest> m_pendingRequests;

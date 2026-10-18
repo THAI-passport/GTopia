@@ -19,9 +19,7 @@ PlayerSession* PlayerManager::GetSessionByID(uint32 userID)
 {
     auto it = m_sessions.find(userID);
     if (it != m_sessions.end())
-    {
         return &it->second;
-    }
 
     return nullptr;
 }
@@ -59,9 +57,7 @@ GamePlayer* PlayerManager::GetPlayerByNetID(uint32 netID)
 {
     auto it = m_gamePlayers.find(netID);
     if (it != m_gamePlayers.end())
-    {
         return it->second;
-    }
 
     return nullptr;
 }
@@ -69,9 +65,7 @@ GamePlayer* PlayerManager::GetPlayerByNetID(uint32 netID)
 void PlayerManager::AddPlayer(GamePlayer* pPlayer)
 {
     if (!pPlayer)
-    {
         return;
-    }
 
     m_isPlayerCountDirty = true;
     m_gamePlayers.insert_or_assign(pPlayer->GetNetID(), pPlayer);
@@ -107,9 +101,7 @@ uint32 PlayerManager::GetInGamePlayerCount()
 uint32 PlayerManager::GetTotalPlayerCount()
 {
     if (!m_isPlayerCountDirty)
-    {
         return m_totalPlayerCount;
-    }
 
     m_totalPlayerCount = GetServerManager()->GetPlayerCount(); //+ GetInGamePlayerCount();
     return m_totalPlayerCount;

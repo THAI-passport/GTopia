@@ -275,6 +275,9 @@ class ItemInfo:
     
         if version > 25:
             _ = buf.u8()
+
+        if version > 26:
+            _ = buf.str()
     
         return item
 

@@ -25,11 +25,483 @@ add_tab|3|bigitems_menu|Awesome Items|btn_shop.rttex|4||
 add_tab|4|weather_menu|Weather Menu|btn_shop.rttex|5||
 add_tab|5|token_menu|Growtoken Items|btn_shop.rttex|2||
 
-add_store|0|world_lock|`oWorld Lock``|2000|store_buttons.rttex|0|7|`2You Get:`` 1 World Lock.<CR><CR>`5Description:`` Become the undisputed ruler of your domain with one of these babies.  It works like a normal lock except it locks the `$enti re world``!  Won't work on worlds that other people already have locks on. You can even  add additional normal locks to give access to certain areas to friends. `5It's a perma -item, is never lost when destroyed.``  `wRecycles for 200 Gems.``|
+# MAIN MENU TAB
+add_store|0|wonder_provider|`oWonder Provider``|50000|store_buttons39.rttex|1|3|`2You Get:`` 1 Wonder Provider.<CR><CR>`5Description:`` A wonderous provider that will give wonderful things everyday for 7 days from the time you place it!|
+set_items|12680|
+
+add_store|0|infernal_shades|`oInfernal Shades``|25000|store_buttons38.rttex|0|7|`2You Get:`` 1 Infernal Shades.<CR><CR>`5Description:`` Head into town with hottest shades out right now... literally. `4Not available any other way!``|
+set_items|infernal_shades|1|12474|
+
+add_store|0|boo_pack|`oB.O.O. Training Pack``|10000|store_buttons15.rttex|0|4|`2You Get:`` 1 `#Rare Spectral Goggles``, 1 Neutron Gun, 1 Neutron Pack and 10 Ghost Jars <CR><CR>`5Description:`` It looks like Growtopia is under siege by ghosts! Well, the `9Battlers Of the Otherworldly`` are hiring! You'll have to earn your uniform, but this pack includes all the tools you need to actually capture ghosts! Including `#Rare`` Spectral Goggles (all the better to see them with!)and a Neutron Pack to corral the ghosts, of course 10 Ghost Jars to catch them in.|
+set_items|boo_pack|1|3710|1|3716|1|3714|10|3720|
+
+#######################################################
+# LOCK MENU TAB
+add_store|1|upgrade_backpack|`0Upgrade Backpack`` (`w10 Slots``)|0|store_buttons.rttex|0|1|`2You Get:`` 10 Additional Backpack Slots.<CR><CR>`5Description:`` Sewing an extra pocket onto your backpack will allow you to store `$10`` additional item types.  How else are you going to fit all those toilets and doors?|
+
+add_store|1|clothes|`oClothes Pack``|50|store_buttons2.rttex|0|0|`2You Get:`` 3 Randomly Wearable Items.<CR><CR>`5Description:`` Why not look the part? Some may even have special powers...|
+# NO FOUND
+
+add_store|1|rare_clothes|`oRare Clothes Pack``|500|store_buttons2.rttex|0|1|`2You Get:`` 3 Randomly Chosen Wearable Items.<CR><CR>`5Description:`` Enjoy the garb of kings! Some may even have special powers...|
+# NO FOUND
+
+add_store|1|infernal_shades|`oInfernal Shades``|25000|store_buttons38.rttex|0|7|`2You Get:`` 1 Infernal Shades.<CR><CR>`5Description:`` Head into town with hottest shades out right now... literally. `4Not available any other way!``|
+set_items|infernal_shades|1|12474|
+
+add_store|1|tidal_shades|`oTidal Shades``|25000|store_buttons38.rttex|1|7|`2You Get:`` 1 Tidal Shades.<CR><CR>`5Description:`` Make waves with these tidal shades. `4Not available any other way!``|
+set_items|tidal_shades|1|12476|
+
+add_store|1|verdant_shades|`oVerdant Shades``|25000|store_buttons38.rttex|2|7|`2You Get:`` 1 Verdant Shades.<CR><CR>`5Description:`` Go green and support the environment with these verdant shades. `4Not available any other way!``|
+set_items|verdant_shades|1|12478|
+
+add_store|1|transmutation_device|`oTransmutabooth``|25000|store_buttons27.rttex|0|7|`2You Get:`` 1 Transmutabooth.<CR><CR>`5Description:`` Behold! A wondrous technological achievement from the innovative minds at GrowTech, the Transmutabooth allows you to merge clothing items, transferring the visual appearance of one onto another in the same slot! If you've ever wanted your Cyclopean Visor to look like Shades (while keeping its mod), now you can!|
+set_items|transmutation_device|1|9170|
+
+add_store|1|contact_lenses|`oContact Lens Pack``|15000|store_buttons22.rttex|0|7|`2You Get:`` 20 Random Contact Lens Colors.<CR><CR>`5Description:`` Need a colorful new look? This pack includes 20 random Contact Lens colors (and may include Contact Lens Cleaning Solution, to return to your natural eye color)!|
+# NO FOUND
+
+add_store|1|eye_drops|`oEye Drop Pack``|30000|store_buttons17.rttex|0|6|`2You Get:`` 1 `#Rare Bathroom Mirror`` and 10 random Eye Drop Colors.<CR><CR>`5Description:`` Need a fresh new look?  This pack includes a 10 random Eye Drop Colors (may include Eye Cleaning Solution, to leave your eyes sparkly clean)!|
+# NO FOUND
+
+add_store|1|nyan_hat|`oTurtle Hat``|25000|store_buttons3.rttex|0|2|`2You Get:`` 1 Turtle Hat.<CR><CR>`5Description:`` It's the greatest hat ever. It bloops out bubbles as you run! `4Not available any other way!``|
+set_items|nyan_hat|1|574|
+
+add_store|1|tiny_horsie|`oTiny Horsie``|25000|store_buttons3.rttex|0|5|`2You Get:`` 1 Tiny Horsie.<CR><CR>`5Description:`` Tired of wearing shoes? Wear a Tiny Horsie instead! Or possibly a large dachshund, we're not sure. Regardless, it lets you run around faster than normal, plus you're on a horse! `4Not available any other way!``|
+set_items|tiny_horsie|1|592|
+
+add_store|1|star_ship|`oPleiadian Star Ship``|25000|store_buttons4.rttex|0|3|`2You Get:`` 1 Pleiadian Star Ship.<CR><CR>`5Description:`` Float on, my brother. It's all groovy. This star ship can't fly, but you can still zoom around in it, leaving a trail of energy rings and moving at enhanced speed. Sponsored by Pleiadian. `4Not available any other way!``|
+set_items|star_ship|1|760|
+
+add_store|1|dragon_hand|`oDragon Hand``|50000|store_buttons5.rttex|0|1|`2You Get:`` 1 Dragon Hand.<CR><CR>`5Description:`` Call forth the dragons of legend!  With the Dragon Hand, you will command your own pet dragon. Instead of punching blocks or players, you can order your dragon to incinerate them! In addition to just being awesome, this also does increased damage, and pushes other players farther. `4Not available any other way!``|
+set_items|dragon_hand|1|900|
+
+add_store|1|corvette|`oLittle Red Corvette``|25000|store_buttons6.rttex|0|1|`2You Get:`` 1 Little Red Corvette.<CR><CR>`5Description:`` Cruise around the neighborhood in style with this sweet convertible. It moves at enhanced speed and leaves other Growtopians in your dust. `4Not available any other way!``|
+set_items|corvette|1|766|
+
+add_store|1|stick_horse|`oStick Horse``|25000|store_buttons6.rttex|0|3|`2You Get:`` 1 Stick Horse.<CR><CR>`5Description:`` Nobody looks cooler than a person bouncing along on a stick with a fake horse head attached. NOBODY. `4Not available any other way!``|
+set_items|stick_horse|1|1012|
+
+add_store|1|ambulance|`oAmbulance``|25000|store_buttons7.rttex|0|3|`2You Get:`` 1 Ambulance.<CR><CR>`5Description:`` Rush to the scene of an accident while lawyers chase you in this speedy rescue vehicle. `4Not available any other way!``|
+set_items|ambulance|1|1272|
+
+add_store|1|raptor|`oRiding Raptor``|25000|store_buttons7.rttex|0|7|`2You Get:`` 1 Riding Raptor.<CR><CR>`5Description:`` Long thought to be extinct, it turns out that these dinosaurs are actually alive and easily tamed. And riding one lets you run around faster than normal! `4Not available any other way!``|
+set_items|raptor|1|1320|
+
+add_store|1|owl|`oMid-Pacific Owl``|30000|store_buttons10.rttex|0|1|`2You Get:`` 1 Mid-Pacific Owl.<CR><CR>`5Description:`` This owl is a bit lazy - if you stop moving around, he'll land on your head and fall asleep. Dedicated to the students of the Mid-Pacific Institute. `4Not available any other way!``|
+set_items|owl|1|1540|
+
+add_store|1|unicorn|`oUnicorn Garland``|50000|store_buttons10.rttex|0|4|`2You Get:`` 1 Unicorn Garland.<CR><CR>`5Description:`` Prance about in the fields with your very own pet unicorn! It shoots `1R`2A`3I`4N`5B`6O`7W`8S``. `4Not available any other way!``|
+set_items|unicorn|1|1648|
+
+add_store|1|starboard|`oStarBoard``|30000|store_buttons11.rttex|0|1|`2You Get:`` 1 StarBoard.<CR><CR>`5Description:`` Hoverboards are here at last! Zoom around Growtopia on this brand new model, which is powered by fusion energy (that means stars spit out of the bottom). Moves faster than walking. Sponsored by Miwsky, Chudy, and Dawid. `4Not available any other way!``|
+set_items|starboard|1|1740|
+
+add_store|1|motorcycle|`oGrowley Motorcycle``|50000|store_buttons11.rttex|0|6|`2You Get:`` 1 Growley Motorcycle.<CR><CR>`5Description:`` The coolest motorcycles available are Growley Dennisons. Get a sporty blue one today! It even moves faster than walking, which is pretty good for a motorcycle. `4Not available any other way!``|
+set_items|motorcycle|1|1950|
+
+add_store|1|monkey_on_back|`oMonkey On Your Back``|50000|store_buttons13.rttex|0|2|`2You Get:`` 1 Monkey On Your Back.<CR><CR>`5Description:`` Most people work really hard to get rid of these, but hey, if you want one, it's available! `4But not available any other way!`` Sponsored by SweGamerHD's subscribers, Kizashi, and Inforced. `#Note: This is a neck item, not a back item. He's grabbing your neck!``|
+set_items|monkey_on_back|1|2900|
+
+add_store|1|carrot_sword|`oCarrot Sword``|15000|store_buttons13.rttex|0|3|`2You Get:`` 1 Carrot Sword.<CR><CR>`5Description:`` Razor sharp, yet oddly tasty. This can carve bunny symbols into your foes! `4Not available any other way!`` Sponsored by MrMehMeh.|
+set_items|carrot_sword|1|2908|
+
+add_store|1|red_bicycle|`oRed Bicycle``|30000|store_buttons13.rttex|0|5|`2You Get:`` 1 Red Bicycle.<CR><CR>`5Description:`` It's the environmentally friendly way to get around! Ride this bicycle at high speed hither and zither throughout Growtopia. `4Not available any other way!``|
+set_items|red_bicycle|1|2974|
+
+add_store|1|fire_truck|`oFire Truck``|50000|store_buttons14.rttex|0|2|`2You Get:`` 1 Fire Truck.<CR><CR>`5Description:`` Race to the scene of the fire in this speedy vehicle! `4Not available any other way!``|
+set_items|fire_truck|1|3068|
+
+add_store|1|pet_slime|`oPet Slime``|100000|store_buttons14.rttex|0|4|`2You Get:`` 1 Pet Slime.<CR><CR>`5Description:`` What could be better than a blob of greasy slime that follows you around? How about a blob of greasy slime that follows you around and spits corrosive acid, melting blocks more quickly than a normal punch? `4Not available any other way!``|
+set_items|pet_slime|1|3166|
+
+add_store|1|dabstep_shoes|`oDabstep Low Top Sneakers``|30000|store_buttons21.rttex|0|2|`2You Get:`` 1 Dabstep Low Top Sneakers.<CR><CR>`5Description:`` Light up every footfall and move to a better beat with these dabulous shoes! When you're wearing these, the world is your dance floor! `4Not available any other way!``|
+set_items|dabstep_shoes|1|6780|
+
+#######################################################
+# ITEMPACK MENU TAB
+add_store|2|world_lock|`oWorld Lock``|2000|store_buttons.rttex|0|7|`2You Get:`` 1 World Lock.<CR><CR>`5Description:`` Become the undisputed ruler of your domain with one of these babies.  It works like a normal lock except it locks the `$entire world``!  Won't work on worlds that other people already have locks on. You can even add additional normal locks to give access to certain areas to friends. `5It's a perma-item, is never lost when destroyed.``|
 set_items|world_lock|1|242|
 
-add_store|0|world_lock_10_pack|`oWorld Lock Pack``|20000|store_buttons.rttex|0|7|`2You Get:`` 10 World Locks.<CR><CR>`5Description:`` 10-pack of World Locks. Become the  undisputed ruler of up to TEN kingdoms with these babies. Each works like a normal lock  except it locks the `$entire world``!  Won't work on worlds that other people already have locks on. You can even add additional normal locks to give access to certain areas to friends. `5It's a perma-item, is never lost when destroyed.`` `wEach recycles for 200 Gems.``|
-set_items|world_lock2|10|242|
+add_store|2|world_lock_10_pack|`oWorld Lock Pack``|20000|store_buttons18.rttex|0|3|`2You Get:`` 10 World Locks.<CR><CR>`5Description:`` 10-pack of World Locks. Become the undisputed ruler of up to TEN kingdoms with these babies. Each works like a normal lock except it locks the `$entire world``!  Won't work on worlds that other people already have locks on. You can even add additional normal locks to give access to certain areas to friends. `5It's a perma-item, is never lost when destroyed.``|
+set_items|world_lock_10_pack|10|242|
 
-add_store|0|small_lock|`oSmall Lock``|50|store_buttons.rttex|1|3|`2You Get:`` 1 Small Lock.<CR><CR>`5Description:`` Protect up to `$10`` tiles.  Can add  friends to the lock so others can edit that area as well. `5It's a perma-item, is neve r lost when destroyed.``|
+add_store|2|anzu_pack1|`oAdvertisers Pack``|10000|store_buttons36.rttex|0|1|`2You Get:`` 1 Ad Control Block and a selection of Ad blocks. <CR><CR>`5Description:`` With this pack you can build custom Ad billboards in your world. There are 3 sizes you can choose from, 2x3, 3x2 and 6x1. You need to arrange these in a grid to activate the Ad. Remember to check your Gem earnings each day using the Ad Control Block.|
+# NO FOUND
+
+add_store|2|small_lock|`oSmall Lock``|50|store_buttons.rttex|1|3|`2You Get:`` 1 Small Lock.<CR><CR>`5Description:`` Protect up to `$10`` tiles.  Can add friends to the lock so others can edit that area as well. `5It's a perma-item, is never lost when destroyed.``<CR><CR>Available: 100/100``<CR>Restock in: `520 Hours 21 Mins``|
 set_items|small_lock|1|202|
+
+add_store|2|big_lock|`oBig Lock``|200|store_buttons.rttex|1|1|`2You Get:`` 1 Big Lock.<CR><CR>`5Description:`` Protect up to `$48`` tiles.  Can add friends to the lock so others can edit that area as well. `5It's a perma-item, is never lost when destroyed.``<CR><CR>Available: 100/100``<CR>Restock in: `520 Hours 21 Mins``|
+set_items|big_lock|1|204|
+
+add_store|2|huge_lock|`oHuge Lock``|500|store_buttons.rttex|0|4|`2You Get:`` 1 Huge Lock.<CR><CR>`5Description:`` Protect up to `$200`` tiles.  Can add friends to the lock so others can edit that area as well. `5It's a perma-item, is never lost when destroyed.``<CR><CR>Available: 100/100``<CR>Restock in: `520 Hours 21 Mins``|
+set_items|huge_lock|1|206|
+
+add_store|2|door_pack|`oDoor And Sign Hello Pack``|15|store_buttons.rttex|0|3|`2You Get:`` 1 Door and 1 Sign.<CR><CR>`5Description:`` Own your very own door and sign! This pack comes with one of each. Leave cryptic messages and create a door that can open to, well, anywhere.|
+set_items|door_pack|1|12|1|20|
+
+add_store|2|door_mover|`oDoor Mover``|5000|store_buttons8.rttex|0|6|`2You Get:`` 1 Door Mover.<CR><CR>`5Description:`` Unsatisfied with your world's layout?  This one-use device can be used to move the White Door to any new location in your world, provided there are 2 empty spaces for it to fit in. Disappears when used. `2Only usable on a world you have World Locked.``|
+set_items|door_mover|1|1404|
+
+add_store|2|auction_block|`oAuction Block``|8000|store_buttons43.rttex|0|2|`2You Get:`` 1 Auction Block.<CR><CR>`5Description: ``Put your items up for auction with this Auction Block. Set the starting price and the duration for the auction. When the auction ends, whatever the final bid is will be the sale price so choose your starting price carefully. While an auction is running you will not be able to edit the world. This block is a one time use, upon a successful sale the block will become unusable.``|
+set_items|auction_block|1|15546|
+
+add_store|2|vending_machine|`oVending Machine``|8000|store_buttons13.rttex|0|6|`2You Get:`` 1 Vending Machine.<CR><CR>`5Description:`` Tired of interacting with human beings? Try a Vending Machine! You can put a stack of items inside it, set a price in World Locks, and people can buy from the machine while you sit back and rake in the profits! `5It's a perma-item, is never lost when destroyed, and it is not available any other way.``|
+set_items|vending_machine|1|2978|
+
+add_store|2|digi_vend|`oDigiVend Machine``|12000|store_buttons29.rttex|0|2|`2You Get:`` 1 DigiVend Machine.<CR><CR>`5Description:`` Get with the times and go digital! This wired vending machine can connect its contents to Vending Hubs AND the multiversal economy, providing a unified shopping experience along with price checks to help you sell your goods! All that, and still no human-related hassle! Use your wrench on this to stock it with an item and set a price in World Locks. Other players will be able to buy from it! Only works in World-Locked worlds.|
+set_items|digi_vend|1|9268|
+
+add_store|2|checkout_counter|`oVending Hub - Checkout Counter``|50000|store_buttons29.rttex|0|3|`2You Get:`` 1 Vending Hub.<CR><CR>`5Description:`` Your one-stop shop! This vending hub will collect and display (and let shoppers buy) the contents of ALL DigiVends in its row or column (wrench it to set which the direction)! Wow! Now that's a shopping experience we can all enjoy! Note: Only works in World-Locked worlds.|
+set_items|checkout_counter|1|9270|
+
+add_store|2|change_addr|`oChange of Address``|20000|store_buttons12.rttex|0|6|`2You Get:`` 1 Change of Address.<CR><CR>`5Description:`` Don't like the name of your world? You can use up one of these to trade your world's name with the name of any other world that you own. You must have a `2World Lock`` in both worlds. Go lock up that empty world with the new name you want and swap away!|
+set_items|change_addr|1|2580|
+
+add_store|2|signal_jammer|`oSignal Jammer``|2000|store_buttons.rttex|1|6|`2You Get:`` 1 Signal Jammer.<CR><CR>`5Description:`` Get off the grid! Install a `$Signal Jammer``! A single punch will cause it to whir to life, tireless hiding your world and its population from pesky snoopers - only those who know the world name will be able to enter. `5It's a perma-item, is never lost when destroyed.``|
+set_items|signal_jammer|1|226|
+
+add_store|2|punch_jammer|`oPunch Jammer``|15000|store_buttons7.rttex|0|4|`2You Get:`` 1 Punch Jammer.<CR><CR>`5Description:`` Tired of getting bashed around? Set up a Punch Jammer in your world, and people won't be able to punch each other! Can be turned on and off as needed. `5It's a perma-item, is never lost when destroyed.``|
+set_items|punch_jammer|1|1276|
+
+add_store|2|zombie_jammer|`oZombie Jammer``|15000|store_buttons7.rttex|0|5|`2You Get:`` 1 Zombie Jammer.<CR><CR>`5Description:`` Got a parkour or race that you don't want slowed down? Turn this on and nobody can be infected by zombie bites in your world. It does not prevent direct infection by the g-Virus itself though. `5It's a perma-item, is never lost when destroyed.``|
+set_items|zombie_jammer|1|1278|
+
+add_store|2|starship_blast|`oImperial Starship Blast``|10000|store_buttons21.rttex|0|1|`2You Get:`` 1 Imperial Starship Blast.<CR><CR>`5Description:`` Command your very own Starship and explore the cosmos! This blast contains one of 3 possible Imperial ship types - which will you get? Note: Each Starship comes with a full tank of gas, an Imperial Helm - Mk. I, Imperial Reactor - Mk. I and an Imperial Viewscreen - Mk. I, so you'll be all set for your adventure among the stars! Note: A Starship also comes with an assortment of space-age blocks!|
+set_items|starship_blast|1|6420|
+
+add_store|2|surg_blast|`oSurgWorld Blast``|15000|store_buttons27.rttex|0|2|`2You Get:`` 1 SurgWorld Blast, 1 Caduceaxe and 1 Reception Desk.<CR><CR>`5Description:`` Your gateway to a world of medical wonders! SurgWorld is a place of care and healing, with all kinds of interesting blocks, top tips on how to treat people with surgery, and an increased chance of getting maladies while you work! Also comes with 1 Reception Desk and 1 Caduceaxe to extract Vaccine Drops from blocks. `6Warning:`` May break when extracting vaccine.|
+set_items|surg_blast|1|8556|
+
+add_store|2|bountiful_blast|`oBountiful Blast``|5000|store_buttons27.rttex|0|3|`2You Get:`` 1 Bountiful Blast.<CR><CR>`5Description:`` Enter a world of fertile soil, cheerful sunshine and lush green hills, and bountiful new trees! This blast is your ticket to a different kind of farming!|
+set_items|bountiful_blast|1|8738|
+
+add_store|2|thermo_blast|`oThermonuclear Blast``|15000|store_buttons8.rttex|0|5|`2You Get:`` 1 Thermonuclear Blast.<CR><CR>`5Description:`` This supervillainous device will blast you to a new world that has been scoured completely empty - it contains nothing but Bedrock and a White Door. Remember: When using this, you are creating a NEW world by typing in a new name. It would be irresponsible to let you blow up an entire existing world.|
+set_items|thermo_blast|1|1402|
+
+add_store|2|antigravity_generator|`oAntigravity Generator``|450000|store_buttons17.rttex|0|3|`2You Get:`` 1 Antigravity Generator.<CR><CR>`5Description:`` Disables gravity in your world when activated! Well, it reduces gravity, and lets everybody jump as much as they want! `5It's a perma-item - never lost when destroyed! `4Not available any other way!````|
+set_items|antigravity_generator|1|4992|
+
+add_store|2|building_blocks_machine|`oBuilding Blocks Machine``|8000|store_buttons26.rttex|0|3|`2You Get:`` 1 Building Blocks Machine.<CR><CR>`5Description:`` Eager to add some new building materials to your construction stockpile? Tired of collecting them from random worlds and weirdos? Well, pop this beauty in your world and it'll start cranking out awesome blocks in no time! Contains the `5RARE Creepy Baby Block and Digital Dirt`` amongst a heap of other new blocks! Careful, though - blocks don't just come from nothing, and this machine will eventually run out of power once it makes a bunch!|
+set_items|building_blocks_machine|1|8196|
+
+add_store|2|builders_lock|`oBuilder's Lock``|50000|store_buttons17.rttex|0|2|`2You Get:`` 1 Builders Lock.<CR><CR>`5Description:`` Protect up to `$200`` tiles. Wrench the lock to limit it - it can either only allow building, or only allow breaking! `5It's a perma-item, is never lost when destroyed.``|
+set_items|builders_lock|1|4994|
+
+add_store|2|weather_sunny|`oWeather Machine - Sunny``|1000|store_buttons5.rttex|0|5|`2You Get:`` 1 Weather Machine - Sunny.<CR><CR>`5Description:`` You probably don't need this one... but if you ever have a desire to turn a sunset or desert world back to normal, grab a Sunny Weather Machine to restore the default Growtopia sky! `5It's a perma-item, is never lost when destroyed.``|
+set_items|weather_sunny|1|932|
+
+add_store|2|weather_night|`oWeather Machine - Night``|10000|store_buttons5.rttex|0|6|`2You Get:`` 1 Weather Machine - Night.<CR><CR>`5Description:`` You might not call it weather, but we do! This will turn the background of your world into a lovely night scene with stars and moon. `5It's a perma-item, is never lost when destroyed.``|
+set_items|weather_night|1|934|
+
+add_store|2|weather_arid|`oWeather Machine - Arid``|10000|store_buttons5.rttex|0|7|`2You Get:`` 1 Weather Machine - Arid.<CR><CR>`5Description:`` Want your world to look like a cartoon desert? This will turn the background of your world into a desert scene with all the trimmings. `5It's a perma-item, is never lost when destroyed.``|
+set_items|weather_arid|1|946|
+
+add_store|2|weather_rainy|`oWeather Machine - Rainy City``|10000|store_buttons6.rttex|0|5|`2You Get:`` 1 Weather Machine - Rainy City.<CR><CR>`5Description:`` This will turn the background of your world into a dark, rainy city scene complete with sound effects. `5It's a perma-item, is never lost when destroyed.``|
+set_items|weather_rainy|1|984|
+
+add_store|2|weather_warp|`oWeather Machine - Warp Speed``|10000|store_buttons11.rttex|0|3|`2You Get:`` 1 Weather Machine - Warp Speed.<CR><CR>`5Description:`` This Weather Machine will launch your world through space at relativistic speeds, which will cause you to age more slowly, as well as see stars flying by rapidly in the background. `5It's a perma-item, is never lost when destroyed.``|
+set_items|weather_warp|1|1750|
+
+add_store|2|mars_blast|`oMars Blast``|15000|store_buttons6.rttex|0|7|`2You Get:`` 1 Mars Blast.<CR><CR>`5Description:`` Blast off to Mars!  This powerful rocket ship will launch you to a new world set up like the surface of Mars, with a special martian sky background, and unique terrain not found elsewhere in the solar system. Mars even has lower gravity than Growtopia normally does! Remember: When using this, you are creating a NEW world by typing in a new name. You can't convert an existing world to Mars, that would be dangerous.|
+set_items|mars_blast|1|1136|
+
+add_store|2|undersea_blast|`oUndersea Blast``|15000|store_buttons9.rttex|0|7|`2You Get:`` 1 Undersea Blast.<CR><CR>`5Description:`` Explore the ocean!  This advanced device will terraform a new world set up like the bottom of the ocean, with a special ocean background, and special blocks like Seaweed, Coral, Jellyfish, Sharks, and maybe a special surprise... Remember, by using this you are creating a NEW world by typing in a new name. You can't convert an existing world to an ocean, that would be dangerous.|
+set_items|undersea_blast|1|1532|
+
+add_store|2|cave_blast|`oCave Blast``|30000|store_buttons15.rttex|0|2|`2You Get:`` 1 Cave Blast.<CR><CR>`5Description:`` This explosive device will punch a hole in the ground, giving you a dark cavern to explore. There are even rumors of treasure and the entrance to ancient mines, hidden deep in the caves... but make sure you bring a World Lock. The blasted world is not locked when it's created, so lock it before somebody shows up! Remember: When using this, you are creating a NEW world by typing in a new name. You can't convert an existing world to a cave, that would be dangerous.|
+set_items|cave_blast|1|3562|
+
+add_store|2|weather_stuff|`oWeather Machine - Stuff``|50000|store_buttons15.rttex|0|6|`2You Get:`` 1 Weather Machine - Stuff.<CR><CR>`5Description:`` This is the most fun weather imaginable - Choose any item from your inventory, adjust some settings, and watch it rain down from the sky! Or up, if you prefer reversing the gravity. `5It's a perma-item, is never lost when destroyed.``|
+set_items|weather_stuff|1|3832|
+
+add_store|2|weather_jungle|`oWeather Machine - Jungle``|20000|store_buttons16.rttex|0|5|`2You Get:`` 1 Weather Machine - Jungle.<CR><CR>`5Description:`` This weather machine will turn the background of your world into a steamy jungle. `5It's a perma-item, is never lost when destroyed.``|
+set_items|weather_jungle|1|4776|
+
+add_store|2|weather_backgd|`oWeather Machine - Background``|150000|store_buttons17.rttex|0|1|`2You Get:`` 1 Weather Machine - Background.<CR><CR>`5Description:`` This amazing device can scan any Background Block, and will make your entire world look like it's been filled with that block. Also handy for hiding music notes! `5It's a perma-item, is never lost when destroyed.``|
+set_items|weather_backgd|1|5000|
+
+add_store|2|digital_rain_weather|`oWeather Machine - Digital Rain``|30000|store_buttons22.rttex|0|6|`2You Get:`` 1 Weather Machine - Digital Rain.<CR><CR>`5Description:`` Take the grow pill, and we'll show you how deep the rabbit hole goes! Splash the scrolling code of creation across the skies of your worlds. They say you learn to understand it after a while... Note: You can only have one of these per world. `5It's a perma-item, is never lost when destroyed.``|
+set_items|digital_rain_weather|1|6854|
+
+add_store|2|treasure_blast|`oTreasure Blast``|10000|store_buttons26.rttex|0|6|`2You Get:`` 1 Treasure Blast.<CR><CR>`5Description:`` Enter a world of snow-capped peaks and long-forgotten mysteries! Riddles and secrets - and a ton of treasure - await those who brave this blast's blocks! Remember, when you use this, it'll create a new world by typing in a new name! No sense in searching for clues to great treasures in well-trod worlds, is there?|
+set_items|treasure_blast|1|7588|
+
+add_store|2|infinity_weather_machine|`oInfinity Weather Machine``|50000|store_buttons32.rttex|0|3|`2You Get:`` 1 Infinity Weather Machine.<CR><CR>`5Description:`` Imagine being able to predict the weather?! Well, with the Infinity Weather Machine you can! Add multiple Weather Machines to this machine and have them play on a loop, like a weather mix tape, kind of!|
+set_items|infinity_weather_machine|1|10058|
+
+#######################################################
+# BIGITEMS MENU TAB
+add_store|3|5seed|`oSmall Seed Pack``|100|store_buttons.rttex|1|4|`2You Get:`` 1 Small Seed Pack.<CR><CR>`5Description:`` Contains one Small Seed Pack. Open it for `$5`` randomly chosen seeds, 4 `3Common`` seeds, and 1 `1Rare`` seed! Who knows what you'll get?!<CR><CR>*All valid seeds have an equal % chance.<CR>`3Common`` seeds between rarity 2 - 12.<CR>`1Rare`` seeds between rarity 13 - 21.|
+# NO FOUND
+
+add_store|3|ssp_10_pack|`oSmall Seed Pack Collection``|1000|store_buttons18.rttex|0|4|`2You Get:`` 10 Small Seed Packs.<CR><CR>`5Description:`` Open each one for `$5`` randomly chosen seeds apiece, including 4 `3Common`` seeds per pack, and 1 `1Rare`` seed per pack! Who knows what you'll get?!<CR><CR>*All valid seeds have an equal % chance.<CR>`3Common`` seeds between rarity 2 - 12.<CR>`1Rare`` seeds between rarity 13 - 21.|
+# NO FOUND
+
+add_store|3|rare_seed|`oRare Seed Pack``|1000|store_buttons.rttex|1|7|`2You Get:`` 5 Randomly Chosen `1Rare`` Seeds.<CR><CR>`5Description:`` Expect some wondrous crops with these!<CR><CR>*All valid seeds have an equal % chance.<CR>`1Rare`` seeds between rarity 13 - 60.|
+# NO FOUND
+
+add_store|3|grow_spray|`o5-pack of Grow Spray Fertilizer``|200|store_buttons.rttex|0|6|`2You Get:`` 5 Grow Spray Fertilizers.<CR><CR>`5Description:`` Why wait?!  Treat yourself to a `$5-pack`` of amazing `wGrow Spray Fertilizer`` by GrowTech Corp.  Each bottle instantly ages a tree by `$1 hour``.|
+set_items|grow_spray|5|228|
+
+add_store|3|deluxe_grow_spray|`oDeluxe Grow Spray``|900|store_buttons11.rttex|0|2|`2You Get:`` 1 Deluxe Grow Spray.<CR><CR>`5Description:`` GrowTech's new `$Deluxe`` `wGrow Spray`` instantly ages a tree by `$24 hours`` per bottle! That's somewhere around 25 times as much as regular Grow Spray!|
+set_items|deluxe_grow_spray|1|1778|
+
+add_store|3|bountiful_seed_pack|`oBountiful Seed Pack``|1000|store_buttons28.rttex|0|4|`2You Get:`` 1 Bountiful Seed Pack.<CR><CR>`5Description:`` Contains `$5`` randomly chosen bountiful seeds, including 1 rare seed! Who knows what you'll get?!|
+set_items|bountiful_seed_pack|1|8970|
+
+add_store|3|basic_splice|`oBasic Splicing Kit``|200|store_buttons2.rttex|0|3|`2You Get:`` 10 Rock Seeds and 10 Random Seeds of Rarity 2.<CR><CR>`5Description:`` The basic seeds every farmer needs.|
+# NO FOUND
+
+add_store|3|surg_starter_pack|`oSurgery Starter Pack``|5000|store_buttons39.rttex|1|0|`2You Get:`` 1 `#Rare Heart Monitor``, 1 Hospital Bed, 5 Train-E bots, 1 Scrub Cap, 1 Scrub Mask, 1 Scrub Top, and 1 Scrub Pants. <CR><CR>`5Description:`` Get all the furniture you need to start up your own private surgery practice! `#Rare`` Heart Monitor that lets people know when you are online, Hospital Bed that lets you perform surgery on anybody laying (or standing) on it, 5 Train-E bot to practice on, and a full set of scrubs to look the part.|
+# NO FOUND
+
+add_store|3|surgical_kit|`oSurgical Kit``|12000|store_buttons7.rttex|0|2|`2You Get:`` 5 of each of the 13 different Surgical Tools and 1 Surg-E.<CR><CR>`5Description:`` Get all the tools you need to start up your own private surgical practice and 1 Surg-E bot to practice on. and 5 each of the thirteen different Surgical Tools you'll need to do that surgery!|
+# NO FOUND
+
+add_store|3|surg_value_pack|`oSurgical Tools Value Pack``|45000|store_buttons39.rttex|0|0|`2You Get:`` 20 of each of the 13 different Surgical Tools and 5 Surg-E.<CR><CR>`5Description:`` Get all the tools you need and 5 Surg-E bots to perform surgery on at a discounted price! and 20 each of the thirteen different Surgical Tools you'll need to do that surgery!|
+# NO FOUND
+
+add_store|3|star_supplies|`oGalactic Goodies``|15000|store_buttons21.rttex|0|0|`2You Get:`` 60 Star Tools and 25 Star Fuel.<CR><CR>`5Description:`` Get all the Star Tools you need to boldly go where no Growtopian has gone! Use these to help you command a starship and seek victory in the Galactic Nexus! You'll get 5 each of the 12 Star Tools you'll need to complete missions and some bonus Star Fuel to help power a Starship!|
+# NO FOUND
+
+add_store|3|fishin_pack|`oFishin' Pack``|10000|store_buttons14.rttex|0|0|`2You Get:`` 1 Fishing Rod, 5 Wiggly Worms, 1 Hand Drill, 1 Nuclear Detonator,  1 `#Rare Tackle Box``, 10 Fish Tanks, 5 Water Buckets and 1 `#Rare Fish Tank Port`` .<CR><CR>`5Description:`` Relax and sit by the shore... this pack includes a Fishing Rod, Wiggly Worms for bait, Hand Drill, Nuclear Detonator, and a `#Rare`` Tackle Box which provides you with more free bait every two days, Fish Tanks, and a `#Rare`` Fish Tank Port to put the fish you catch into your fish tank!|
+set_items|fishin_pack|1|2912|1|2914|1|5522|1|5524|1|3044|10|3004|1|822|1|3002|
+
+add_store|3|fish_training_pack|`oFish Trainin' Pack``|10000|store_buttons17.rttex|0|7|`2You Get:`` 2 Fish Flakes, 2 Fish Medicine, AND 1 `#Rare Training Port``.<CR><CR>`5Description:`` Get ready to train your favorite fish! Use the Training Port to put a perfect fish into your fish tank for training!|
+# NO FOUND
+
+add_store|3|fish_flakes|`oFish Flakes``|7500|store_buttons18.rttex|0|2|`2You Get:`` 5 Fish Flakes.<CR><CR>`5Description:`` Every fish adores these tasty flakes! Give a pinch to your Training Fish and fill their scaly bellies with aquatic goodness! Take the guesswork out of finnicky feedings with a treat you know they'll love!|
+set_items|fish_flakes|1|5536|
+
+add_store|3|fish_medicine|`oFish Medicine``|1500|store_buttons18.rttex|0|0|`2You Get:`` 1 Fish Medicine.<CR><CR>`5Description:`` Make a sick Training Fish bright and healthy with this healing potion. One dose is enough to make even the sickest fish all better!|
+set_items|fish_medicine|1|5532|
+
+add_store|3|fish_reviver|`oFish Reviver``|5000|store_buttons18.rttex|0|1|`2You Get:`` 1 `#Rare Fish Reviver``.<CR><CR>`5Description:`` Resurrect a dead Training Fish with a revivifying zap from this `#Rare`` Fish Reviver! One dose is enough to reach beyond the veil and bring a fish back from the dead! Comes with a 100% zombie-free guarantee!|
+set_items|fish_reviver|1|5534|
+
+add_store|3|crime_wave|`oCrime Wave``|5000|store_buttons12.rttex|0|5|`2You Get:`` 5 Random Superpower Cards and 1 `#Rare Crime Wave``.<CR><CR>`5Description:`` Get powered up with random Superpower Cards, and what good would that be without a `#Rare`` Crime Wave to use them on? A Crime Wave is a one-use item that calls four villains to your world for you to battle. `6Beware:`` Villains only stick around for 24 hours once they appear.|
+set_items|crime_wave|1|2382|
+
+add_store|3|silkworm|`oSilkworm``|7000|store_buttons14.rttex|0|7|`2You Get:`` 1 Silk Worm.<CR><CR>`5Description:`` It's the newest cuddly pet from Growtech Pharma! Thanks to genetic engineering, you can now raise your own giant mutant silkworm. They'll eat almost any food, but don't forget to give them water too! And if they get sick, you'll need to have some Antidotes on hand. `6Warning:`` `9Silkworms are living creatures. They will not live forever! Take good care of them, and enjoy them while you can.`` `4Not available any other way``.|
+set_items|silkworm|1|3316|
+
+add_store|3|geiger|`oGeiger Counter``|25000|store_buttons12.rttex|0|1|`2You Get:`` 1 Geiger Counter.<CR><CR>`5Description:`` With this fantabulous device, you can detect radiation around you. It bleeps red, then yellow, then green as you get closer to the source. Who knows what you might find? `4Not available any other way!``|
+set_items|geiger|1|2204|
+
+add_store|3|zombie_pack|`oZombie Defense Pack``|10000|store_buttons4.rttex|0|4|`2You Get:`` 1 `#Rare Sawed-Off Shotgun``, 1 Combat Vest, 1 Zombie Stompin' Boots, 3 Traffic Barricades, 1 Military Radio, 1 Antidote, 3 Toxic Waste Barrels, 3 Biohazard Signs, 3 Tombstones and 1 `#Rare Deadly G-Virus``!.<CR><CR>`5Description:`` The zombie invasion has come! Protect yourself with all the esential zombie fighting gear and best of all, you get an Antidote to cure yourself! Also includes the deadly g-Virus itself to infect your friends with!|
+set_items|zombie_pack|1|768|1|790|1|788|3|774|1|786|1|782|3|776|3|780|3|784|1|764|
+
+add_store|3|boo_pack|`oB.O.O. Training Pack``|10000|store_buttons15.rttex|0|4|`2You Get:`` 1 `#Rare Spectral Goggles``, 1 Neutron Gun, 1 Neutron Pack and 10 Ghost Jars <CR><CR>`5Description:`` It looks like Growtopia is under siege by ghosts! Well, the `9Battlers Of the Otherworldly`` are hiring! You'll have to earn your uniform, but this pack includes all the tools you need to actually capture ghosts! Including `#Rare`` Spectral Goggles (all the better to see them with!)and a Neutron Pack to corral the ghosts, of course 10 Ghost Jars to catch them in.|
+set_items|boo_pack|1|3710|1|3716|1|3714|10|3720|
+
+add_store|3|ectojuicer|`oEctoJuicer``|30000|store_buttons20.rttex|0|0|`2You Get:`` 1 EctoJuicer.<CR><CR>`5Description:`` Infuse your muscles with the unearthly might of the Other Side! This spectral potion gives you the strength to wring every last drop of ectoplasm from a defeated Boss Ghost, granting you an EXTRA Boss Goo after a successful banishing!|
+set_items|ectojuicer|1|6096|
+
+add_store|3|ghost_hunting|`oGhost Hunter's Pack``|10000|store_buttons19.rttex|0|7|`2You Get:`` 1 Ghost Hunter's Crate``.<CR><CR>`5Description:`` A crate containing the essentials for Ghost Hunting! Guaranteed to have at least 5x Ghost Jars, plus one or more bonus items! Bonuses can include: Neutron Focus Cores, Containment Field Power Nodes, EXTRA Ghost Jars, Ghost Traps, Spirit Boards, and maybe even a Dark Spirit Board!|
+set_items|ghost_hunting|1|13820|
+
+add_store|3|chemsynth|`oChemsynth Pack``|10000|store_buttons16.rttex|0|4|`2You Get:`` 1 `#Rare Chemsynth Processor``, 10 Chemsynth Tanks and 1 Chemsynth Replicator, 1 Chemsynth Catalyst, 1 Chemsynth Solvent, 1 Chemsynth Centrifuge, 1 Chemsynth Stirrer.<CR><CR>`5Description:`` Tired of the lousy chemicals nature has to offer? Create new synthetic ones! With a `#Rare`` Chemsynth Processor, Chemsynth Tanks, and one each of the five Chemsynth tools, you can be whipping up Synthetic Chemicals in no time. `6Warning:`` Chemsynth solving is a pretty tricky puzzle, and it costs a whole bunch of the five basic chemicals (R, G, B, P, and Y) to complete.|
+# NO FOUND
+
+#######################################################
+# WEATHER MENU TAB (yea its not weather)
+add_store|4|race_pack|`oRacing Action Pack``|3500|store_buttons2.rttex|0|7|`2You Get:`` 1 Racing Start Flag, 1 Racing End Flag, 2 Checkpoints, 2 Big Old Sideways Arrows, 1 Big Old Up Arrow, 1 Big Old Down Arrow, 1 WristBand, 1 HeadBand, 1 Sports Ball Jersey and 1 Air Robinsons.<CR><CR>`5Description:`` Get all you need to host races in your worlds! You'll win the races too, with new Air Robinsons that make you run faster!|
+# NO FOUND
+
+add_store|4|music_pack|`oComposer's Pack``|5000|store_buttons3.rttex|0|0|`2You Get:`` 20 Sheet Music: Blank, 20 Sheet Music: Piano Note, 20 Sheet Music: Bass Note, 20 Sheet Music Drums, 5 Sheet Music: Sharp Piano, 5 Sheet Music: Flat Piano, 5 Sheet Music: Flat Bass and 5 Sheet Music: Sharp Bass .<CR><CR>`5Description:`` With these handy blocks, you'll be able to compose your own music, using your World-Locked world as a sheet of music. Requires a World Lock (sold separately!).|
+# NO FOUND
+
+add_store|4|school_pack|`oEducation Pack``|5000|store_buttons4.rttex|0|0|`2You Get:`` 10 ChalkBoards, 3 School Desks, 20 Red Bricks, 1 Bulletin Board, 10 Pencils, 1 Growtopia Lunchbox, 1 Grey Hair Bun, 1 Apple and 1 Random School Uniform Item.<CR><CR>`5Description:`` If you want to build a school in Growtopia, here's what you need!|
+# NO FOUND
+
+add_store|4|dungeon_pack|`oDungeon Pack``|10000|store_buttons4.rttex|0|1|`2You Get:`` 20 Grimstone, 20 Blackrock Wall, 20 Iron Bars, 3 Jail Doors, 3 Skeletons, 1 Headsman's Axe, 1 Worthless Rags. 5 Torches and a `#Rare Iron Mask!``.<CR><CR>`5Description:`` Lock up your enemies in a dank dungeon! Of course they can still leave whenever they want. But they won't want to, because it looks so cool! Iron Mask muffles your speech!|
+# NO FOUND
+
+add_store|4|fantasy_pack|`oFantasy Pack``|5000|store_buttons3.rttex|0|6|`2You Get:`` 1 Mystical Wizard Hat Seed, 1 Wizards Robe, 1 Golden Sword, 1 Elvish Longbow, 10 Barrels, 3 Tavern Signs, 3 Treasure Chests and 3 Dragon Gates.<CR><CR>`5Description:`` Hear ye, hear ye! It's a pack of magical wonders!|
+# NO FOUND
+
+add_store|4|vegas_pack|`oVegas Pack``|20000|store_buttons4.rttex|0|5|`2You Get:`` 10 Neon Lights, 1 Card Block Seed, 1 `#Rare Pink Cadillac`` 4 Flipping Coins, 1 Dice Block, 1 Gamblers Visor, 1 Slot Machine, 1 Roulette Wheel and 1 Showgirl Hat, 1 Showgirl top and 1 Showgirl Leggins.<CR><CR>`5Description:`` What happens in Growtopia stays in Growtopia!|
+# NO FOUND
+
+add_store|4|farm_pack|`oFarm Pack``|15000|store_buttons5.rttex|0|0|`2You Get:`` 1 Cow, 1 Chicken, 10 Wheat, 10 Barn Block, 10 Red Wood Walls, 1 Barn Door, 1 Straw Hat, 1 Overalls, 1 Pitchfork, 1 Farmgirl Hair, 1 `#Rare`` `2Dear John Tractor``.<CR><CR>`5Description:`` Put the `2Grow`` in Growtopia with this pack, including a Cow you can milk, a Chicken that lays eggs and a farmer's outfit. Best of all? You get a `#Rare`` `2Dear John Tractor`` you can ride that will mow down trees!<CR><CR>`5BONUS:`` With every purchase there is a chance that you will receive a fancy `5Distinguished Straw Hat`` instead of a Straw Hat!|
+# NO FOUND
+
+add_store|4|science_pack|`oMad Science Kit``|5000|store_buttons5.rttex|0|3|`2You Get:`` 1 Science Station, 1 Laboratory, 1 LabCoat, 1 Combover Hair, 1 Goggles, 5 Chemical R, 10 Chemical G, 5 Chemical Y, 5 Chemical B, 5 Chemical P and 1 `#Rare`` `2Death Ray``.<CR><CR>`5Description:`` It's SCIENCE! Defy the natural order with a Science Station that produces chemicals, a Laboratory in which to mix them and a full outfit to do so safely! You'll also get a starter pack of assorted chemicals. Mix them up! Special bonus: A `#Rare`` `2Death Ray`` to make your science truly mad!|
+# NO FOUND
+
+add_store|4|city_pack|`oCity Pack``|8000|store_buttons6.rttex|0|0|`2You Get:`` 10 Sidewalks, 3 Street Signs, 3 Streetlamps, 10 Gothic Building tiles, 10 Tenement Building tiles, 10 Fire Escapes, 3 Gargoyles, 10 Hedges, 1 Blue Mailbox, 1 Fire Hydrant and A `#Rare`` `2ATM Machine``.<CR><CR>`5Description:`` Life in the big city is rough but a `#Rare`` `2ATM Machine`` that dishes out gems once a day is very nice!|
+# NO FOUND
+
+add_store|4|west_pack|`oWild West Pack``|8000|store_buttons6.rttex|0|2|`2You Get:`` 1 Cowboy Hat, 1 Cowboy Boots, 1 War Paint, 1 Face Bandana, 1 Sheriff Vest, 1 Layer Cake Dress,  1 Corset, 1 Kansas Curls, 10 Western Building 1 Saloon Doors, 5 Western Banners, 1 Buffalo, 10 Rustic Fences, 1 Campfire and 1 Parasol.<CR><CR>`5Description:`` Yippee-kai-yay! This pack includes everything you need to have wild time in the wild west! The Campfire plays cowboy music, and the `#Parasol`` lets you drift down slowly. Special bonus: A `#Rare`` `2Six Shooter`` to blast criminals with!|
+# NO FOUND
+
+add_store|4|astro_pack|`oAstro Pack``|5000|store_buttons6.rttex|0|6|`2You Get:`` 1 Astronaut Helmet, 1 Space Suit, 1 Space Pants, 1 Moon Boots, 1 Rocket Thruster, 1 Solar Panel, 6 Space Connectors, 1 Porthole, 1 Compu Panel, 1 Forcefield and 1 `#Rare`` `2Zorbnik DNA``.<CR><CR>`5Description:`` Boldly go where no Growtopian has gone before with an entire Astronaut outfit. As a special bonus, you can have this `#Rare`` `2Zorbnik DNA`` we found on a distant planet. It doesn't do anything by itself, but by trading with your friends, you can collect 10 of them, and then... well, who knows?|
+# NO FOUND
+
+add_store|4|prehistoric_pack|`oPrehistoric Pack``|5000|store_buttons8.rttex|0|0|`2You Get:`` 1 Caveman Club, 1 Cave Woman Hair, 1 Caveman Hair, 1 Sabertooth Toga, 1 Fuzzy Bikini Top, 1 Fuzzy Bikni Bottom, 1 Cavewoman Outfit, 10 Cliffside, 5 Rock Platforms, 1 Cave Entrance, 3 Prehistoric Palms and 1 `#Rare Sabertooth Growtopian``.<CR><CR>`5Description:`` Travel way back in time with this pack, including full Caveman and Cavewoman outfits and `#Rare Sabertooth Growtopian`` (that's a mask of sorts). Unleash your inner monster!|
+# NO FOUND
+
+add_store|4|shop_pack|`oShop Pack``|10000|store_buttons8.rttex|0|7|`2You Get:`` 4 Display Boxes, 1 For Sale Sign, 1 Gem Sign, 1 Exclamation Sign, 1 Shop Sign, 1 Open Sign, 1 Cash Register, 1 Mannequin and 1 Security Camera.<CR><CR>`5Description:`` Run a fancy shop with these new items! Advertise your wares with an Open/Closed Sign you can switch with a punch, a Cash Register, a Mannequin you can dress up to show off clothing, and a `#Rare`` Security Camera, which reports when people enter and take items!|
+# NO FOUND
+
+add_store|4|home_pack|`oHome Pack``|5000|store_buttons9.rttex|0|6|`2You Get:`` 1 Television, 4 Couches, 2 Curtains, 1 Wall Clock, 1 Microwave, 1 Meaty Apron, 1 Ducky Pants, 1 Ducky top and 1 Eggs Benedict.<CR><CR>`5Description:`` Welcome home to Growtopia! Decorate with a Television, Window Curtains, Couches, a `#Rare`` Wall Clock that actually tells time, and a Microwave to cook in. Then dress up in a Meaty Apron and Ducky Pajamas to sit down and eat Eggs Benedict, which increases the amount of XP you earn!|
+# NO FOUND
+
+add_store|4|cinema_pack|`oCinema Pack``|6000|store_buttons10.rttex|0|2|`2You Get:`` 1 Clapboard, 1 Black Beret, 1 3D Glasses, 6 Theater Curtains, 6 Marquee Blocks, 1 Director's Chair, 4 Theater Seats, 6 Movie Screens, 1 Movie Camera and 1 `#Rare GHX Speaker``.<CR><CR>`5Description:`` It's movie time! Everything you need for the big screen experience including a `#Rare GHX Speaker`` that plays the score from Growtopia: The Movie.|
+# NO FOUND
+
+add_store|4|adventure_pack|`oAdventure Pack``|20000|store_buttons10.rttex|0|7|`2You Get:`` 4 Gateways to Adventure, 4 Path Markers, 1 Lazy Cobra, 1 Adventure Brazier, 4 Adventure Barriers, 1 Rope, 1 Torch, 1 Key, 1 Golden Idol, 1 `#Rare Adventuring Mustache``, 1 Explorer's Ponytail and 1 Sling Bag .<CR><CR>`5Description:`` Join Dr. Exploro and her father (also technically Dr. Exploro) as they seek out adventure! You can make your own adventure maps with the tools in this pack.|
+# NO FOUND
+
+add_store|4|rockin_pack|`oRockin' Pack``|9999|store_buttons11.rttex|0|0|`2You Get:`` 3 `#Rare Musical Instruments`` Including A Keytar, a Bass Guitar and Tambourine, 1 Starchild Make Up, 1 Rockin' Headband, 1 Leopard Leggings, 1 Shredded Ts-Shirt, 1 Drumkit, 6 Stage Supports, 6 Mega Rock Speakers and 6 Rock n' Roll Wallpaper.<CR><CR>`5Description:`` ROCK N' ROLL!!! Play live music in-game! We Formed a Band! Growtopia makes me want to rock out.|
+# NO FOUND
+
+add_store|4|game_pack|`oGame Pack``|50000|store_buttons10.rttex|0|6|`2You Get:`` 1 `#Rare Game Generator``,  4 Game Blocks, 4 Game Flags, 4 Game Graves and 4 Game Goals.<CR><CR>`5Description:`` Growtopia's not all trading and socializing! Create games for your friends with the Game Pack (and a lot of elbow grease).|
+# NO FOUND
+
+add_store|4|superhero|`oSuperhero Pack``|10000|store_buttons12.rttex|0|0|`2You Get:`` 1 Mask, 1 Shirt, 1 Boots, 1 Tights, 1 Cape, `#Rare Super Logos`` or `#Rare Utility Belt`` and 1 `2Phone Booth``.<CR><CR>`5Description:`` Battle the criminal element in Growtopia with a complete random superhero outfit including a cape that lets you double jump. Each of these items comes in one of six random colors. You also get one of 5 `#Rare`` Super Logos, which automatically match the color of any shirt you wear or a `#Rare`` Utility Belt... of course use the `2Phone Booth`` to change into your secret identity!|
+# NO FOUND
+
+add_store|4|fashion_pack|`oFashion Pack``|6000|store_buttons13.rttex|0|0|`2You Get:`` 3 Random Clothing Items, 3 Jade Blocks and 1 `#Rare Spotlight``.<CR><CR>`5Description:`` The hottest new looks for the season are here now with 3 random Fashion Clothing (dress, shoes, or purse), Jade Blocks to pose on, and a `#Rare`` Spotlight to shine on your fabulousness.|
+# NO FOUND
+
+add_store|4|sportsball_pack|`oSportsball Pack``|20000|store_buttons13.rttex|0|1|`2You Get:`` 2 Basketball Hoop, 2 Sporty Goal, 5 Stadium, 5 Crowded Stadium, 10 Field Grass, 1 Football Helmet, 1 Growies Cap, 1 Ref's Jersey, 1 World Cup Winner's Jersey 2026, 1 `#Rare Sports Item`` or `#Rare Growmoji!``.<CR><CR>`5Description:`` We like sports and we don't care who knows! This pack includes everything you need to get sporty! Use the Sports Items to launch Sportsballs at each other.|
+# NO FOUND
+
+add_store|4|firefighter|`oFirefighter Pack``|10000|store_buttons14.rttex|0|1|`2You Get:`` 1 Yellow Helmet, 1 Yellow Jacket, 1 Yellow Pants, 1 Firemans Boots, 1 Fire Hose, and 1 `#Rare Firehouse`` .<CR><CR>`5Description:`` Rescue Growtopians from the fire! Includes a full Yellow Firefighter Outfit, Fire Hose and a `#Rare Firehouse``, which will protect your own world from fires.|
+# NO FOUND
+
+add_store|4|steampack|`oSteampack``|20000|store_buttons14.rttex|0|6|`2You Get:`` 10 Steam Tubes, 2 Steam Stompers, 2 Steam Organs, 2 Steam Vents, 2 Steam Valves and 1 `#Rare Steampunk Top Hat``.<CR><CR>`5Description:`` Steam! It's a wondrous new technology that lets you create paths of Steam Blocks, then jump on a Steam Stomper to launch a jet of steam through the path, triggering steam-powered devices. Build puzzles, songs, parkour challenges, and more!|
+# NO FOUND
+
+add_store|4|paintbrush|`oPainter's Pack``|30000|store_buttons15.rttex|0|1|`2You Get:`` 1 `#Rare Paintbrush`` and 20 Random Colored Paint Buckets.<CR><CR>`5Description:`` Want to paint your world? This pack includes 20 buckets of random paint colors (may include Varnish, to clean up your messes)! You can paint any block in your world different colors to personalize it.|
+# NO FOUND
+
+add_store|4|paleo_kit|`oPaleontologist's Kit``|20000|store_buttons16.rttex|0|0|`2You Get:`` 5 Fossil Brushes, 1 Rock Hammer, 1 Rock Chisel, 1 Blue Hardhat and 1 `#Rare Fossil Prep Station``.<CR><CR>`5Description:`` If you want to dig up fossils, this is the kit for you! Includes everything you need! Use the prepstation to get your fossils ready for display.|
+set_items|paleo_kit|5|4132|1|3932|1|3934|1|4182|1|3938|
+
+add_store|4|robot_starter_pack|`oCyBlocks Starter Pack``|5000|store_buttons18.rttex|0|6|`2You Get:`` 1 `5Rare ShockBot`` and 10 random movement commands.<CR><CR>`5Description:`` CyBlocks Starter Pack includes one `5Rare`` ShockBot and 10 random movement commands to use with it. `5ShockBot`` is a perma-item, is never lost when destroyed.|
+# NO FOUND
+
+add_store|4|robot_command_pack|`oCyBlocks Command Pack``|2000|store_buttons19.rttex|0|2|`2You Get:`` 10 Random CyBlock Commands.<CR><CR>`5Description:`` Grants 10 random CyBlock Commands to help control your CyBots!|
+# NO FOUND
+
+add_store|4|robot_pack|`oCyBot Pack``|15000|store_buttons19.rttex|0|3|`2You Get:`` 1 `5Rare CyBot``!<CR><CR>`5Description:`` Grants one random `5Rare`` CyBot! Use CyBlock Commands to send these mechanical monsters into action! `5Note: Each CyBot is a perma-item, and will never be lost when destroyed.``|
+# NO FOUND
+
+add_store|4|gang_pack|`oGangland Style``|5000|store_buttons2.rttex|0|6|`2You Get:`` 1 Fedora, 1 Dames Fedora, 1 Pinstripe Suit with Pants, 1 Flapper Headband with Dress, 1 Cigar, 1 Tommy Gun, 1 Victola and 10 Art Deco Blocks .<CR><CR>`5Description:`` Step into the 1920's with a Complete Outfit, a Tommygun, a Victrola that plays jazz music, and 10 Art Deco Blocks. It's the whole package!|
+set_items|gang_pack|1|462|1|464|1|466|1|468|1|474|1|476|1|470|1|472|1|480|10|478|
+
+#######################################################
+# TOKEN MENU TAB
+add_store|5|challenge_timer|`oChallenge Timer``|-5|store_buttons15.rttex|0|5|`2You Get:`` 1 Challenge Timer.<CR><CR>`5Description:`` Get more people playing your parkours with this secure prize system. You'll need a `#Challenge Start Flag`` and `#Challenge End Flag`` as well (not included). Stock prizes into the Challenge Timer, set a time limit, and watch as players race from start to end. If they make it in time, they win a prize!|
+set_items|challenge_timer|1|3804|
+
+add_store|5|xp_potion|`oExperience Potion``|-10|store_buttons9.rttex|0|2|`2You Get:`` 1 Experience Potion.<CR><CR>`5Description:`` This `#Untradeable`` delicious fizzy drink will make you smarter! 10,000 XP smarter instantly, to be exact.|
+set_items|xp_potion|1|1488|
+
+add_store|5|i_love_dirt_shirt|`oI love Dirt Shirt``|-10|store_buttons37.rttex|4|0|`2You Get:`` 1 I love Dirt Shirt.<CR><CR>`5Description:`` Some people like things to be clean, you're not one of them are you? This item is `#Untradeable``.|
+set_items|i_love_dirt_shirt|1|11190|
+
+add_store|5|growmoji_pack|`oGrowmoji Mystery Box``|-15|store_buttons19.rttex|0|1|`2You Get:`` 1 Growmoji.<CR><CR>`5Description:`` Express yourself! This mysterious box contains one of six fun growmojis you can use to spice up your chat! Which will you get?|
+# NO FOUND
+
+add_store|5|mini_mod|`oMini-Mod``|-20|store_buttons17.rttex|0|0|`2You Get:`` 1 Mini-Mod.<CR><CR>`5Description:`` Oh no, it's a Mini-Mod! Punch him to activate (you'll want to punch him!). When activated, he won't allow anyone to drop items in your world.|
+set_items|mini_mod|1|4758|
+
+add_store|5|derpy_star|`oDerpy Star Block``|-30|store_buttons10.rttex|0|3|`2You Get:`` 1 Derpy Star Block.<CR><CR>`5Description:`` DER IM A SUPERSTAR. This is a fairly ordinary block, except for the derpy star on it. Note: it is not permanent, and it doesn't drop seeds. So use it wisely!|
+set_items|derpy_star|1|1628|
+
+add_store|5|dirt_gun|`oBLYoshi's Free Dirt``|-40|store_buttons13.rttex|0|4|`2You Get:`` 1 BLYoshi's Free Dirt.<CR><CR>`5Description:`` "Free" might be stretching it, but hey, once you buy this deadly rifle, you can spew out all the dirt you want for free! Note: the dirt is launched at high velocity and explodes on impact. Sponsored by BLYoshi.|
+set_items|dirt_gun|1|2876|
+
+add_store|5|growtoken_shades|`oGrowtoken Shades``|-40|store_buttons40.rttex|1|1|`2You Get:`` 1 Growtoken Shades.<CR><CR>`5Description:`` It's all about the Growtokens, Growtokens, Growtokens!|
+# NO FOUND
+
+add_store|5|saeedru_ghutra|`oSaeedRu's Ghutra``|-40|store_buttons39.rttex|4|2|`2You Get:`` 1 SaeedRu's Ghutra.<CR><CR>`5Description:`` A traditional headwear worn in the Middle East! Sponsored by SaeedRu for completing all epic quests!|
+set_items|saeedru_ghutra|1|12828|
+
+add_store|5|nothingness|`oWeather Machine - Nothingness``|-50|store_buttons9.rttex|0|3|`2You Get:`` 1 Weather Machine - Nothingness.<CR><CR>`5Description:`` Tired of all that fancy weather?  This machine will turn your world completely black. Yup, that's it. Not a single pixel in the background except pure blackness.|
+set_items|nothingness|1|1490|
+
+add_store|5|orca_hood|`oOrca Hood``|-50|store_buttons44.rttex|4|1|`2You Get:`` 1 Orca Hood.<CR><CR>`5Description:`` Sea a world that's new to you with the Orca Hood! Note: This item is `#UNTRADEABLE``.|
+# NO FOUND
+
+add_store|5|spike_juice|`oSpike Juice``|-60|store_buttons10.rttex|0|5|`2You Get:`` 1 Spike Juice.<CR><CR>`5Description:`` It's fresh squeezed, with little bits of spikes still in it! Drinking this `#Untradeable`` one-use potion will make you immune to Death Spikes and Lava for 5 seconds.|
+set_items|spike_juice|1|1662|
+
+add_store|5|doodad|`oDoodad``|-75|store_buttons9.rttex|0|5|`2You Get:`` 1 Doodad.<CR><CR>`5Description:`` I have no idea what this thing does. It's something electronic? Maybe?|
+set_items|doodad|1|1492|
+
+add_store|5|crystal_cape|`oCrystal Cape``|-90|store_buttons11.rttex|0|5|`2You Get:`` 1 Crystal Cape.<CR><CR>`5Description:`` This cape is woven of pure crystal, which makes it pretty uncomfortable. But it also makes it magical! It lets you double-jump off of an imaginary Crystal Block in mid-air. Sponsored by Edvoid20, HemeTems, and Aboge.|
+set_items|crystal_cape|1|1738|
+
+add_store|5|focused_eyes|`oFocused Eyes``|-100|store_buttons9.rttex|0|4|`2You Get:`` 1 Focused Eyes.<CR><CR>`5Description:`` This `#Untradeable`` item lets you shoot electricity from your eyes! Wear them with pride, and creepiness.|
+set_items|focused_eyes|1|1204|
+
+add_store|5|grip_tape|`oGrip Tape``|-100|store_buttons14.rttex|0|5|`2You Get:`` 1 Grip Tape.<CR><CR>`5Description:`` This is handy for wrapping around the handle of a weapon or tool. It can improve your grip, as well as protect you from cold metal handles. If you aren't planning to craft a weapon that requires Grip Tape, this does you no good at all!|
+set_items|grip_tape|1|3248|
+
+add_store|5|cat_eyes|`oCat Eyes``|-100|store_buttons23.rttex|0|5|`2You Get:`` 1 Cat Eyes.<CR><CR>`5Description:`` Wow, pawesome! These new eyes are the cat's meow, and the purrfect addition to any style.|
+set_items|cat_eyes|1|7106|
+
+add_store|5|riding_cloud|`oRiding Cloud``|-100|store_buttons37.rttex|3|1|`2You Get:`` 1 Riding Cloud.<CR><CR>`5Description:`` Bringing the sky to the ground! This item is `#Untradeable``.|
+set_items|riding_cloud|1|11168|
+
+add_store|5|grow_boy|`oGrowBoy``|-100|store_buttons32.rttex|0|2|`2You Get:`` 1 Growboy.<CR><CR>`5Description:`` Bask in the nostalgic green screened goodness of the Growboy! A portable gaming device that packs a punch. Now you're playing with GrowPower! Note: The Growboy is `#UNTRADEABLE``.|
+set_items|grow_boy|1|10046|
+
+add_store|5|typewriter_hat|`oTypewriter Hat``|-100|store_buttons38.rttex|4|7|`2You Get:`` 1 Typewriter Hat.<CR><CR>`5Description:`` This hat is connected to your mind writing your story as you go about your day! Note: This hat is `#UNTRADEABLE``.|
+set_items|typewriter_hat|1|12298|
+
+add_store|5|night_vision|`oNight Vision Goggles``|-110|store_buttons15.rttex|0|3|`2You Get:`` 1 Night Vision Goggles.<CR><CR>`5Description:`` Scared of the dark? We have a solution. You can wear these goggles just to look cool, but if you also happen to have a D Battery (`4batteries not included``) on you, you will be able to see through darkness like it's not even there! Each D Battery can power your goggles for 1 minute. `2If you are in a world you own, the goggles will not require batteries!`` Note: you can't turn the goggles off without removing them, so you'll be wasting your battery if you wear them in daylight while carrying D Batteries.|
+set_items|night_vision|1|3576|
+
+add_store|5|muddy_pants|`oMuddy Pants``|-125|store_buttons12.rttex|0|7|`2You Get:`` 1 Muddy Pants.<CR><CR>`5Description:`` Well, this is just a pair of muddy pants. But it does come with a super secret bonus surprise that is sure to blow your mind!|
+set_items|muddy_pants|1|2584|
+
+add_store|5|piranha|`oCuddly Piranha``|-150|store_buttons10.rttex|0|0|`2You Get:`` 1 Cuddly Piranha.<CR><CR>`5Description:`` This friendly pet piranha won't stay in its bowl!  It just wants to snuggle with your face!|
+set_items|piranha|1|1534|
+
+add_store|5|tsed|`oTactical Stealth Espionage Device``|-150|store_buttons32.rttex|0|1|`2You Get:`` 1 Tactical Stealth Espionage Device.<CR><CR>`5Description:`` This is Growtech's latest innovation on tactical espionage! Using the latest in scientific breakthroughs this device allows you to seamlessly disguise yourself as... a cardboard box! Note: The Tactical Stealth Espionage Device is `#UNTRADEABLE``.|
+set_items|tsed|1|10048|
+
+add_store|5|puddy_leash|`oPuddy Leash``|-180|store_buttons11.rttex|0|7|`2You Get:`` 1 Puddy Leash.<CR><CR>`5Description:`` Puddy is a friendly little kitten who will follow you around forever.|
+set_items|puddy_leash|1|2032|
+
+add_store|5|dirt_lord_scepter|`oDirt Lord's Scepter``|-200|store_buttons40.rttex|3|6|`2You Get:`` 1 Dirt Lord's Scepter.<CR><CR>`5Description:`` Plant seeds with soil and strife, rid this block of its life! Note: The Scepter is `#UNTRADEABLE``.|
+set_items|dirt_lord_scepter|1|13712|
+
+add_store|5|golden_axe|`oGolden Pickaxe``|-200|store_buttons9.rttex|0|1|`2You Get:`` 1 Golden Pickaxe.<CR><CR>`5Description:`` Get your own sparkly pickaxe! This `#Untradeable`` item is a status symbol! Oh sure, it isn't any more effective than a normal pickaxe, but it sparkles!|
+set_items|golden_axe|1|1438|
+
+add_store|5|anime_action_hair|`oAnime Action Hair``|-200|store_buttons37.rttex|4|1|`2You Get:`` 1 Anime Action Hair.<CR><CR>`5Description:`` Lights, camera, ANIME ACTION HAIR! Feel the power from root to tip every time you punch! This item is `#Untradeable``.|
+set_items|anime_action_hair|1|11154|
+
+add_store|5|puppy_leash|`oPuppy Leash``|-200|store_buttons11.rttex|0|4|`2You Get:`` 1 Puppy Leash.<CR><CR>`5Description:`` Get your own pet puppy! This little dog will follow you around forever, never wavering in her loyalty, thus making her `#Untradeable``.|
+set_items|puppy_leash|1|1742|
+
+add_store|5|diggers_spade|`oDigger's Spade``|-200|store_buttons13.rttex|0|7|`2You Get:`` 1 Digger's Spade.<CR><CR>`5Description:`` This may appear to be a humble shovel, but in fact it is enchanted with the greatest magic in Growtopia. It can smash Dirt or Cave Background in a single hit! Unfortunately, it's worthless at digging through anything else. Note: The spade is `#UNTRADEABLE``.|
+set_items|diggers_spade|1|2952|
+
+add_store|5|meow_ears|`oMeow Ears``|-200|store_buttons22.rttex|0|0|`2You Get:`` 1 Meow Ears.<CR><CR>`5Description:`` Meow's super special ears that everyone can now get! Note: These ears are `#UNTRADEABLE``.|
+set_items|meow_ears|1|698|
+
+add_store|5|frosty_hair|`oFrosty Hair``|-200|store_buttons23.rttex|0|0|`2You Get:`` 1 Frosty Hair.<CR><CR>`5Description:`` Coldplay is cold, but you can be freezing! Note: The frosty hair is `#UNTRADEABLE``.|
+set_items|frosty_hair|1|1444|
+
+add_store|5|zerkon_helmet|`oEvil Space Helmet``|-200|store_buttons21.rttex|0|6|`2You Get:`` 1 Evil Space Helmet.<CR><CR>`5Description:`` Zerkon commands a starship too small to actually board - pah, time to rule the galaxy properly! Note: The evil space helmet is `#UNTRADEABLE``.|
+set_items|zerkon_helmet|1|1440|
+
+add_store|5|seils_magic_orb|`oSeil's Magic Orbs``|-200|store_buttons21.rttex|0|7|`2You Get:`` 1 Seil's Magic Orbs.<CR><CR>`5Description:`` Seil is some kind of evil wizard, now you can be too! Note: These magic orbs are `#UNTRADEABLE``.|
+set_items|seils_magic_orb|1|820|
+
+add_store|5|atomic_shadow_scythe|`oAtomic Shadow Scythe``|-200|store_buttons21.rttex|0|5|`2You Get:`` 1 Atomic Shadow Scythe.<CR><CR>`5Description:`` AtomicShadow might actually be evil, now you can try it out! Note: The shadow scythe is `#UNTRADEABLE``.|
+set_items|atomic_shadow_scythe|1|1484|
+
+add_store|5|poseidon_diggers_trident|`oPoseidon's Digger's Trident``|-200|store_buttons25.rttex|0|6|`2You Get:`` 1 Poseidon's Digger's Trident.<CR><CR>`5Description:`` A gift from the gods. This may appear to be a humble trident, but in fact it has the power of Poseidon himself. It can smash `8Deep Sand`` or `8Ocean Rock`` in a single hit. Unfortunately, you don't get to wield the full might of Poseidon... the trident is worthless at smashing anything else. Note: The trident is `#UNTRADEABLE``.|
+set_items|poseidon_diggers_trident|1|7434|
+
+add_store|5|really_dangerous_pet_llama|`oReally Dangerous Pet Llama``|-200|store_buttons32.rttex|0|0|`2You Get:`` 1 Really Dangerous Pet Llama.<CR><CR>`5Description:`` This Llama is ready for anything Growtopia throws at it! Armed with a silo of Growtech Missiles, experimental Growtech hardened steel armor and a rather snazzy helmet (Llama's own) this Llama is Dangerous with a capital D! Note: This Really Dangerous Pet Llama is `#UNTRADEABLE``.|
+set_items|really_dangerous_pet_llama|1|10050|

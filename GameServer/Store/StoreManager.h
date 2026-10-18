@@ -40,7 +40,10 @@ struct StoreEntry
     eStoreTab parentTab = STORE_TAB_NONE;
 
     StoreRule rule;
+    string holidayKey;
     std::vector<int32> items;
+
+    int32 GetCost(GamePlayer* pPlayer = nullptr);
 };
 
 class StoreManager
@@ -62,7 +65,8 @@ public:
     eStoreTab GetTabTypeByCode(const string& entryCode);
     void NavigatePlayer(GamePlayer* pPlayer, eStoreTab storeTab);
     bool PurchaseItem(GamePlayer* pPlayer, const string& entryCode);
-    string GivePurchasedItemsAndGetGivensAsStr(GamePlayer* pPlayer, const std::vector<int32>& items);
+    string GivePurchasedItemsAndGetGivensAsStr(GamePlayer* pPlayer, const std::vector<int32>& items,
+                                               StoreEntry* pStoreEntry);
 
     StoreEntry* GetStoreEntryByCodeFromTab(const string& entryCode, eStoreTab storeTab);
     StoreEntry* GetStoreEntryByCode(const string& entryCode);

@@ -12,11 +12,16 @@
 #include "Server/GamePresenceManager.h"
 #include "Server/GameServer.h"
 #include "Server/MasterBroadway.h"
+#include "Server/StatsManager.h"
 #include "Server/UserCacheManager.h"
 #include "Store/StoreManager.h"
 #include "Utils/StringUtils.h"
 #include "Utils/Timer.h"
 #include "World/WorldManager.h"
+
+#ifdef ENABLE_LUA_SCRIPTING
+#include "Lua/LuaManager.h"
+#endif
 
 bool firstCallShutdown = false;
 
@@ -43,14 +48,14 @@ bool ReadArgs(int argc, char const* argv[])
 {
     bool idSet = false;
 
-    for (int i = 1; i < argc; ++i)
+    for (int32 i = 1; i < argc; ++i)
     {
         if (string(argv[i]) == "--id")
         {
             uint16 id = ToUInt(argv[i + 1]);
             if (id <= 0)
             {
-                LOGGER_LOG_ERROR_ASAP("server id must bigger than 0");
+                LOGGER_LOG_ERROR_FLUSH("server id must bigger than 0");
                 return false;
             }
 
@@ -61,7 +66,7 @@ bool ReadArgs(int argc, char const* argv[])
 
     if (!idSet)
     {
-        LOGGER_LOG_ERROR_ASAP("No --id param detected it must set!");
+        LOGGER_LOG_ERROR_FLUSH("No --id param detected it must set!");
         return false;
     }
 
@@ -71,14 +76,11 @@ bool ReadArgs(int argc, char const* argv[])
 void DatabaseThreadFunc()
 {
     Timer logTimer;
-
-    uint64 now = Time::GetSystemTime();
     Context* pContext = GetContext();
-    DatabaseWorker* pWorker = GetContext()->GetDatabasePool()->GetWorker(0);
+    DatabaseWorker* pWorker = pContext->GetDatabasePool()->GetWorker(0);
 
-    while (GetContext()->IsRunning())
+    while (pContext->IsRunning())
     {
-        now = Time::GetSystemTime();
         if (pWorker)
         {
             pWorker->Update();
@@ -94,6 +96,7 @@ void DatabaseThreadFunc()
             GetLog()->Write();
             logTimer.Reset();
         }
+        SleepMS(1);
     }
 }
 
@@ -114,13 +117,7 @@ void EventThreadFunc()
         if (elapsedMs >= 1000)
         {
             uint32 permille = (uint32)((totalWorkTime * 1000) / elapsedMs);
-
-            if (permille > 1000)
-            {
-                permille = 1000;
-            }
-
-            pContext->GetRuntimeStats().GetPerfStats().netCpuPermille = permille;
+            pContext->GetRuntimeStats().GetPerfStats().netCpuPermille = Min(permille, 1000u);
 
             totalWorkTime = 0;
             lastCalculateTime = currentTime;
@@ -142,12 +139,9 @@ void ProcessDatabaseResults(uint64 maxTimeMS)
 {
     DatabasePool* pDatabasePool = GetContext()->GetDatabasePool();
     if (!pDatabasePool)
-    {
         return;
-    }
 
     uint64 startTime = Time::GetSystemTime();
-
     QueryTaskResult taskRes;
 
     while (pDatabasePool->GetResult(taskRes))
@@ -160,9 +154,7 @@ void ProcessDatabaseResults(uint64 maxTimeMS)
         taskRes.Destroy();
 
         if (Time::GetSystemTime() - startTime >= maxTimeMS)
-        {
             break;
-        }
     }
 }
 
@@ -178,20 +170,20 @@ bool LoadItemData()
 
     if (!pItemMgr->Load(GetProgramPath() + "/items.txt"))
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to load items.txt");
+        LOGGER_LOG_ERROR_FLUSH("Failed to load items.txt");
         return false;
     }
 
     if (!pItemMgr->LoadWikiData(GetProgramPath() + "/wiki_data.txt"))
     {
-        LOGGER_LOG_ERROR_ASAP("wiki_data.txt not found, skipping");
+        LOGGER_LOG_ERROR_FLUSH("wiki_data.txt not found, skipping");
     }
     pItemMgr->SetupItemExtras();
 
     bool usingGTCDN = pGameConfig->cdnServer.find("ubistatic-a.akamaihd.net") != string::npos;
     if (usingGTCDN)
     {
-        LOGGER_LOG_WARN_ASAP("Detected ubistatic-a.akamaihd.net skipping filehashes.txt");
+        LOGGER_LOG_WARN_FLUSH("Detected ubistatic-a.akamaihd.net skipping filehashes.txt");
     }
 
     std::unordered_map<string, uint32> hashData;
@@ -200,7 +192,7 @@ bool LoadItemData()
         File fileHashes;
         if (!fileHashes.Open(GetProgramPath() + "/filehashes.txt"))
         {
-            LOGGER_LOG_ERROR_ASAP("Failed to load filehashes.txt");
+            LOGGER_LOG_ERROR_FLUSH("Failed to load filehashes.txt");
             return false;
         }
 
@@ -218,12 +210,10 @@ bool LoadItemData()
         for (auto& line : lines)
         {
             if (line.empty())
-            {
                 continue;
-            }
-
             auto args = Split(line, '|');
-            hashData.insert_or_assign(args[0], ToUInt(args[1]));
+            if (args.size() >= 2)
+                hashData.insert_or_assign(args[0], ToUInt(args[1]));
         }
     }
 
@@ -240,40 +230,22 @@ bool LoadItemData()
         (pGameConfig->iosSupportedVersions[0] >= 3.02f) && (pGameConfig->macosSupportedVersions[0] >= 3.02f);
 
     uint32 totalSavedSize = 0;
-
     LOGGER_LOG_INFO("Serializing item data into memory");
 
     if (!usingGTCDN)
-    {
         pItemMgr->LoadFileHashes(hashData, false);
-    }
     pItemMgr->SaveToClientData(false, minVersion, maxVersion, allSupportZLib, totalSavedSize);
 
     if (!usingGTCDN)
-    {
         pItemMgr->LoadFileHashes(hashData, true);
-    }
     pItemMgr->SaveToClientData(true, minVersion, maxVersion, allSupportZLib, totalSavedSize);
 
     LOGGER_LOG_INFO("Items data totally takes %d bytes from memory", totalSavedSize);
 
     if (!pItemMgr->LoadConsumableData(GetProgramPath() + "/consumable_data.txt"))
     {
-        LOGGER_LOG_ERROR_ASAP("consumable_data.txt not found skipping");
+        LOGGER_LOG_ERROR_FLUSH("consumable_data.txt not found skipping");
     }
-
-    if (!pItemMgr->LoadBattlePetData(GetProgramPath() + "/battle_pet_data.txt"))
-    {
-        LOGGER_LOG_ERROR_ASAP("battle_pet_data.txt not found skipping");
-    }
-
-    /*PlayerTribute* pPlayerTrib = GetPlayerTributeManager();
-    if(!pPlayerTrib->Load(GetProgramPath() + "/player_tribute.txt")) {
-        LOGGER_LOG_ERROR_ASAP("Failed to load player_tribute.txt anyways skipping it");
-    }
-    else {
-        pPlayerTrib->SaveToClientData();
-    }*/
 
     return true;
 }
@@ -288,19 +260,16 @@ void RunGameLoop()
     uint64 nextTick = now + GAME_TICK_MS;
 
     uint64 lastPerfUpdateTime = now;
-
     uint64 tickDurSum = 0;
     uint32 tickCount = 0;
 
     uint32 intervalMaxTickMs = 0;
     uint32 intervalMaxLagSpikeMs = 0;
-
     uint64 totalWorkTimeInInterval = 0;
-    uint64 loopIterStart = now;
 
     while (pContext->IsRunning())
     {
-        loopIterStart = Time::GetSystemTime();
+        uint64 loopIterStart = Time::GetSystemTime();
         now = loopIterStart;
         uint32 loops = 0;
 
@@ -310,12 +279,8 @@ void RunGameLoop()
         if (pContext->IsShutting())
         {
             if (!firstCallShutdown)
-            {
                 ForceSaveEverything();
-            }
-
             nextTick = now + GAME_TICK_MS;
-
             SleepMS(1);
             continue;
         }
@@ -337,8 +302,7 @@ void RunGameLoop()
             intervalMaxTickMs = Max(intervalMaxTickMs, tickDur);
             if (tickDur > GAME_TICK_MS)
             {
-                uint32 currentSpike = tickDur - GAME_TICK_MS;
-                intervalMaxLagSpikeMs = Max(intervalMaxLagSpikeMs, currentSpike);
+                intervalMaxLagSpikeMs = Max(intervalMaxLagSpikeMs, tickDur - GAME_TICK_MS);
             }
 
             nextTick += GAME_TICK_MS;
@@ -352,9 +316,7 @@ void RunGameLoop()
         }
 
         if (now >= nextTick)
-        {
             nextTick = now + GAME_TICK_MS;
-        }
 
         uint64 loopIterEnd = Time::GetSystemTime();
         totalWorkTimeInInterval += (loopIterEnd - loopIterStart);
@@ -364,23 +326,10 @@ void RunGameLoop()
             ContextPerfStats& perf = pContext->GetRuntimeStats().GetPerfStats();
             uint32 elapsedIntervalMs = (uint32)(now - lastPerfUpdateTime);
 
-            if (tickCount > 0)
-            {
-                perf.avgTickMs = (uint32)(tickDurSum / tickCount);
-            }
-            else
-            {
-                perf.avgTickMs = 0;
-            }
-
+            perf.avgTickMs = (tickCount > 0) ? (uint32)(tickDurSum / tickCount) : 0;
             perf.maxTickMs = intervalMaxTickMs;
             perf.lagSpikeMs = intervalMaxLagSpikeMs;
-
-            perf.cpuPermille = (uint32)((totalWorkTimeInInterval * 1000) / elapsedIntervalMs);
-            if (perf.cpuPermille > 1000)
-            {
-                perf.cpuPermille = 1000;
-            }
+            perf.cpuPermille = Min((uint32)((totalWorkTimeInInterval * 1000) / elapsedIntervalMs), 1000u);
 
             tickDurSum = 0;
             tickCount = 0;
@@ -406,12 +355,12 @@ int main(int argc, char const* argv[])
 
     if (!GetLog()->InitFile(GetProgramPath() + "/logs/log_SERVER_" + ToString(GetContext()->GetID()) + ".txt"))
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to init log file, maybe try to create 'logs' folder?");
+        LOGGER_LOG_ERROR_FLUSH("Failed to init log file, maybe try to create 'logs' folder?");
         return 0;
     }
 
-    LOGGER_LOG_INFO_ASAP("Starting Game Server %d", GetContext()->GetID());
-    LOGGER_LOG_INFO_ASAP("Project created by keichira https://github.com/keichira/GTopia")
+    LOGGER_LOG_INFO_FLUSH("Starting Game Server %d", GetContext()->GetID());
+    LOGGER_LOG_INFO_FLUSH("Project created by keichira https://github.com/keichira/GTopia");
 
     GetContext()->Init();
     SetRandomSeed(Time::GetSystemTime());
@@ -420,53 +369,43 @@ int main(int argc, char const* argv[])
     auto pGameConfig = GetContext()->GetGameConfig();
     if (pGameConfig->LoadServersClient(GetProgramPath() + "/servers.txt", GetContext()->GetID()) != 2)
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to load servers.txt");
+        LOGGER_LOG_ERROR_FLUSH("Failed to load servers.txt");
         GetContext()->Kill();
         return 0;
     }
 
     if (pGameConfig->servers[1].serverType != CONFIG_SERVER_GAME)
     {
-        LOGGER_LOG_ERROR_ASAP("Woops trying to run server with wrong type %d it should be game",
-                              pGameConfig->servers[1].serverType);
+        LOGGER_LOG_ERROR_FLUSH("Woops trying to run server with wrong type %d it should be game",
+                               pGameConfig->servers[1].serverType);
         GetContext()->Kill();
         return 0;
     }
 
     if (!pGameConfig->LoadConfig(GetProgramPath() + "/config.txt"))
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to load config.txt");
+        LOGGER_LOG_ERROR_FLUSH("Failed to load config.txt");
         GetContext()->Kill();
         return 0;
     }
 
-    GetDiscordWebhookManager()->RegisterFromConfig(pGameConfig->discordWebhooks, CONFIG_SERVER_GAME);
+    GetDiscordWebhookManager()->SetGameConfig(GetContext()->GetGameConfig());
+    GetDiscordWebhookManager()->RegisterFromConfig(CONFIG_SERVER_GAME);
     LOGGER_LOG_INFO("Registered %d Discord webhooks.", GetDiscordWebhookManager()->GetWebhookCount());
 
-    auto gameServerInfo = pGameConfig->servers[1];
-    if (!GetMasterBroadway()->Init(gameServerInfo.lanIP, gameServerInfo.tcpPort, 0))
+#ifdef ENABLE_LUA_SCRIPTING
+    if (!GetLuaManager()->Initialize())
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to initialize netsocket on %s:%d", gameServerInfo.lanIP.c_str(),
-                              gameServerInfo.tcpPort);
-        GetContext()->Kill();
+        LOGGER_LOG_ERROR_FLUSH("Failed to initialize lua manager");
         return 0;
     }
-    LOGGER_LOG_INFO_ASAP("Started netsocket on %s:%d", gameServerInfo.lanIP.c_str(), gameServerInfo.tcpPort);
-
-    auto masterServerInfo = pGameConfig->servers[0];
-    LOGGER_LOG_INFO_ASAP("Connecting and Authenticating with Master Server...");
-
-    if (!GetMasterBroadway()->ConnectAndAuth(masterServerInfo.lanIP, masterServerInfo.tcpPort, 3,
-                                             GetContext()->GetShutdownFlag()))
-    {
-        LOGGER_LOG_ERROR_ASAP("Master Server connection or authentication failed. Aborting startup.");
-        GetContext()->Kill();
-        return 0;
-    }
+    LOGGER_LOG_INFO("Lua manager initialized, loading lua scripts from '%s'", pGameConfig->luaScriptsPath.c_str());
+    GetLuaManager()->LoadScriptsFromDirectory(pGameConfig->luaScriptsPath);
+#endif
 
     if (!GetRoleManager()->Load(GetProgramPath() + "/roles.txt"))
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to load roles.txt");
+        LOGGER_LOG_ERROR_FLUSH("Failed to load roles.txt");
         GetContext()->Kill();
         return 0;
     }
@@ -478,19 +417,13 @@ int main(int argc, char const* argv[])
     }
 
     if (!GetPlayModManager()->Load(GetProgramPath() + "/playmods.txt"))
-    {
-        LOGGER_LOG_ERROR_ASAP("Failed to load playmods.txt");
-    }
-
+        LOGGER_LOG_ERROR_FLUSH("Failed to load playmods.txt");
     if (!GetAchievementManager()->Load(GetProgramPath() + "/achievements.txt"))
-    {
-        LOGGER_LOG_ERROR_ASAP("Failed to load achievements.txt");
-    }
-
+        LOGGER_LOG_ERROR_FLUSH("Failed to load achievements.txt");
     if (!GetStoreManager()->Load(GetProgramPath() + "/store.txt"))
-    {
-        LOGGER_LOG_ERROR_ASAP("Failed to load store.txt");
-    }
+        LOGGER_LOG_ERROR_FLUSH("Failed to load store.txt");
+    if (!pGameConfig->LoadNews(GetProgramPath() + "/news.txt"))
+        LOGGER_LOG_ERROR_FLUSH("Failed to load news.txt");
 
     DatabaseConnectConfig dbConfig;
     dbConfig.host = pGameConfig->database.host.c_str();
@@ -501,46 +434,68 @@ int main(int argc, char const* argv[])
 
     if (!GetContext()->GetDatabasePool()->Init(1, dbConfig))
     {
-        LOGGER_LOG_ERROR_ASAP(
+        LOGGER_LOG_ERROR_FLUSH(
             "Failed to initialize database pool, database credentials might be wrong check config.txt");
         GetContext()->Kill();
         return 0;
     }
-    LOGGER_LOG_INFO_ASAP("Loaded %d workers for database", GetContext()->GetDatabasePool()->GetWorkerSize());
+    LOGGER_LOG_INFO_FLUSH("Loaded %d workers for database", GetContext()->GetDatabasePool()->GetWorkerSize());
+
+    auto gameServerInfo = pGameConfig->servers[1];
+    if (!GetMasterBroadway()->Init(gameServerInfo.lanIP, gameServerInfo.tcpPort, 0))
+    {
+        LOGGER_LOG_ERROR_FLUSH("Failed to initialize netsocket on %s:%d", gameServerInfo.lanIP.c_str(),
+                               gameServerInfo.tcpPort);
+        GetContext()->Kill();
+        return 0;
+    }
+    LOGGER_LOG_INFO_FLUSH("Started netsocket on %s:%d", gameServerInfo.lanIP.c_str(), gameServerInfo.tcpPort);
+
+    GetStatsManager()->SetSendTCPPacketCallback([](TCPPacketWriter& writer)
+                                                { GetMasterBroadway()->SendPacketRaw(writer); });
+
+    GetWorldManager()->SetBalancerGameConfig(GetContext()->GetGameConfig());
+    GetWorldManager()->RegisterBalancedWorldsFromConfig();
+
+    GetContext()->SetupNetBurstFromConfig();
 
     if (!GetGameServer()->Init(gameServerInfo.wanIP, gameServerInfo.udpPort))
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to initialize game server on %s:%d", gameServerInfo.wanIP.c_str(),
-                              gameServerInfo.udpPort);
+        LOGGER_LOG_ERROR_FLUSH("Failed to initialize game server on %s:%d", gameServerInfo.wanIP.c_str(),
+                               gameServerInfo.udpPort);
         GetContext()->Kill();
         return 0;
     }
     GetGameServer()->SetENetIncomeCmdType(pGameConfig->enetIncomeCmdType);
-    LOGGER_LOG_INFO_ASAP("Started game server on %s:%d", gameServerInfo.wanIP.c_str(), gameServerInfo.udpPort);
+    LOGGER_LOG_INFO_FLUSH("Started game server on %s:%d", gameServerInfo.wanIP.c_str(), gameServerInfo.udpPort);
 
     GetUserCacheManager()->Init(100);
 
-    gNetBurstConfig.threshold.heavyQueueSize = pGameConfig->netThreshold.heavyQueueSize;
-    gNetBurstConfig.threshold.panicQueueSize = pGameConfig->netThreshold.panicQueueSize;
-    gNetBurstConfig.threshold.heavyCpuPermille = pGameConfig->netThreshold.heavyCpuPermille;
-    gNetBurstConfig.threshold.panicCpuPermille = pGameConfig->netThreshold.panicBurst;
-    gNetBurstConfig.normalBurst = pGameConfig->netThreshold.normalBurst;
-    gNetBurstConfig.heavyBurst = pGameConfig->netThreshold.heavyBurst;
-    gNetBurstConfig.panicBurst = pGameConfig->netThreshold.panicBurst;
+    auto masterServerInfo = pGameConfig->servers[0];
+    LOGGER_LOG_INFO_FLUSH("Connecting and Authenticating with Master Server...");
+
+    if (!GetMasterBroadway()->ConnectAndAuth(masterServerInfo.lanIP, masterServerInfo.tcpPort, 3,
+                                             GetContext()->GetShutdownFlag()))
+    {
+        LOGGER_LOG_ERROR_FLUSH("Master Server connection or authentication failed. Aborting startup.");
+        GetContext()->Kill();
+        return 0;
+    }
 
     std::thread dbThread(DatabaseThreadFunc);
     std::thread eventThread(EventThreadFunc);
 
+    GetMasterBroadway()->SendReadyPacket();
+    LOGGER_LOG_INFO_FLUSH("GameServer fully loaded. Sent ready packet to Master Server.");
+
     RunGameLoop();
 
     LOGGER_LOG_INFO("Killing Game server %d", GetContext()->GetID());
-
     GetLog()->Flush();
     GetContext()->GetDatabasePool()->GetWorker(0)->SendFakeTask();
 
     if (dbThread.joinable())
         dbThread.join();
-
     if (eventThread.joinable())
         eventThread.join();
 
@@ -548,11 +503,9 @@ int main(int argc, char const* argv[])
     GetMasterBroadway()->Kill();
     GetDiscordWebhookManager()->Kill();
     GetContext()->Kill();
-
     GetLog()->Kill();
 
     mysql_library_end();
-
     SystemSignal::SignalShutdownComplete();
     return 0;
 }

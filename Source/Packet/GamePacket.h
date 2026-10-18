@@ -3,7 +3,10 @@
 #include "../IO/Log.h"
 #include "../Precompiled.h"
 #include "../Utils/Variant.h"
+#include "TCPPacket.h"
 #include "VariantPacket.h"
+
+#define PRESENCE_MAX_ELEMENTS 4096
 
 enum eTCPPacketType
 {
@@ -29,14 +32,34 @@ enum eTCPPacketType
     TCP_PACKET_WORLD_UPDATE,
     TCP_PACKET_WORLD_REMOVE,
 
+    TCP_PACKET_STATS_UPDATE,
+    TCP_PACKET_READY,
+    TCP_PACKET_HOLIDAY_SYNC,
+    TCP_PACKET_RELOAD_FILE,
+
     TCP_RENDER_REQUEST = 1000,
     TCP_RENDER_RESULT = 1001,
 
     TCP_WORLD_PLAYER_LEAVE = 1010,
     TCP_WORLD_PLAYER_JOIN = 1011,
 
-    TCP_COMMAND_SETROLE = 1100,
-    TCP_COMMAND_BROADCAST_MESSAGE = 1101
+    TCP_COMMAND_GENERIC_RESPONSE = 1100,
+    TCP_COMMAND_EXECUTE_TEXT = 1101,
+    TCP_COMMAND_SETROLE = 1102,
+    TCP_COMMAND_BROADCAST_MESSAGE = 1103,
+    TCP_COMMAND_GIVE_PLAYMOD = 1104,
+    TCP_COMMAND_LUA = 1105
+};
+
+enum eLuaAction
+{
+    LUA_ACTION_RELOAD,
+    LUA_ACTION_LOAD,
+    LUA_ACTION_UNLOAD,
+    LUA_ACTION_PROFILE_ON,
+    LUA_ACTION_PROFILE_OFF,
+    LUA_ACTION_PROFILE_RESET,
+    LUA_ACTION_PROFILE_DUMP
 };
 
 enum eTCPPacketResult
@@ -164,32 +187,110 @@ struct GameUpdatePacket
     bool HasFlag(eGamePacketFlags flag) { return flags & flag; }
     void SetFlag(eGamePacketFlags flag) { flags |= flag; }
 };
+#pragma pack(pop)
 
 struct PlayerPresencePacketElement
 {
-    uint32 userID;
-    uint8 status;
-    char name[32];
+    uint32 userID = 0;
+    uint8 status = 0;
+    string name;
+
+    void Write(TCPPacketWriter& w) const
+    {
+        w.Write<uint32>(userID);
+        w.Write<uint8>(status);
+        w.WriteString(name);
+    }
+
+    bool Read(TCPPacketReader& r) { return r.Read<uint32>(userID) && r.Read<uint8>(status) && r.ReadString(name); }
 };
 
 struct WorldPresenceSnapshotElement
 {
-    uint32 worldID;
-    char name[32];
-    uint16 playerCount;
-    uint8 worldType;
-    uint8 isSignalJammed;
+    uint32 worldID = 0;
+    string name;
+    uint16 playerCount = 0;
+    uint8 worldType = 0;
+    bool isSignalJammed = false;
+
+    void Write(TCPPacketWriter& w) const
+    {
+        w.Write<uint32>(worldID);
+        w.WriteString(name);
+        w.Write<uint16>(playerCount);
+        w.Write<uint8>(worldType);
+        w.Write<uint8>(isSignalJammed ? 1 : 0);
+    }
+
+    bool Read(TCPPacketReader& r)
+    {
+        uint8 jammed = 0;
+        if (!r.Read(worldID) || !r.ReadString(name) || !r.Read(playerCount) || !r.Read(worldType) ||
+            !r.Read<uint8>(jammed))
+            return false;
+
+        isSignalJammed = (jammed != 0);
+        return true;
+    }
 };
 
 struct WorldPresenceUpdateElement
 {
-    uint32 worldID;
-    uint16 playerCount;
-    uint8 isSignalJammed;
+    uint32 worldID = 0;
+    uint16 playerCount = 0;
+    bool isSignalJammed = false;
+
+    void Write(TCPPacketWriter& w) const
+    {
+        w.Write(worldID);
+        w.Write(playerCount);
+        w.Write<uint8>(isSignalJammed ? 1 : 0);
+    }
+
+    bool Read(TCPPacketReader& r)
+    {
+        uint8 jammed = 0;
+        if (!r.Read(worldID) || !r.Read(playerCount) || !r.Read(jammed))
+            return false;
+
+        isSignalJammed = (jammed != 0);
+        return true;
+    }
 };
 
 struct WorldPresenceRemoveElement
 {
-    uint32 worldID;
+    uint32 worldID = 0;
+
+    void Write(TCPPacketWriter& w) const { w.Write(worldID); }
+    bool Read(TCPPacketReader& r) { return r.Read(worldID); }
 };
-#pragma pack(pop)
+
+template <typename T> void WritePresenceElements(TCPPacketWriter& w, const std::vector<T>& elems)
+{
+    w.Write<uint32>(elems.size());
+    for (const T& e : elems)
+        e.Write(w);
+}
+
+template <typename T> bool ReadPresenceElements(TCPPacketReader& r, std::vector<T>& out)
+{
+    out.clear();
+
+    uint32 count = 0;
+    if (!r.Read(count) || count > PRESENCE_MAX_ELEMENTS)
+        return false;
+
+    out.reserve(count);
+    for (uint32 i = 0; i < count; ++i)
+    {
+        T e;
+        if (!e.Read(r))
+        {
+            out.clear();
+            return false;
+        }
+        out.push_back(std::move(e));
+    }
+    return true;
+}

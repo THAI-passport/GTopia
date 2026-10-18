@@ -66,6 +66,11 @@ public:
     TileInfo* GetTileInfoFlaggedWith(eItemFlag flag, uint32 skipItemID = 0);
     TileInfo* GetTileInfoByItemID(int32 itemID, int32 startIndex = 0);
 
+    // they had region as param for these trio, but no neeed i guess?
+    TileInfo* GetRandomEmptyTileOnGround(uint32 maxAttempts, bool checkIfFgEmpty);
+    TileInfo* GetRandomEmptyTile(int32 maxAttempts, bool checkIfFgEmpty);
+    TileInfo* GetRandomTileThatIsntBorder();
+
     int32 GetTileIndex(TileInfo* pTile);
     bool CanPlantTreeHere(TileInfo* pTile);
 
@@ -80,6 +85,7 @@ public:
 
     bool IsSameTile(TileInfo* pTile, int32 x, int32 y, bool forBackground);
     TileInfo* GetTileByTypeFromRect(const RectFloat& rect, int32 itemType);
+    bool TryToFossilRandomRock();
 
     std::vector<TileInfo*> RemoveTileParentsLockedBy(TileInfo* pLockTile);
     bool AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTargetTile, bool ignoreEmpty);

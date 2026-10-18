@@ -15,6 +15,12 @@ renderer_save_path|
 # Absolute directory path where game worlds binary data will be saved
 world_save_path|
 
+# Absolute directory path where lua scripts located to load
+lua_scripts_path|
+
+# Absolute directory path where import or export worlds will be located at
+world_import_export_save_path|
+
 # Rate Limiting settings
 max_logins_at_once|20
 max_accounts_per_ip|5
@@ -33,7 +39,7 @@ enet_income_cmd_type|3
 # 0 = Disabled, (0, 26] = Item Data Version
 force_item_data_version|5
 
-# Supported Game Client Versions (Minimum 3.02 because of ZLib)
+# Supported Game Client Versions
 android_supported_versions|3.02|6.00
 windows_supported_versions|3.02|6.00
 ios_supported_versions|3.02|6.00
@@ -43,6 +49,32 @@ macos_supported_versions|3.02|6.00
 # server_type -> (1 - game server) - (2 - world renderer)
 # add_discord_webhook|server_type|customID (string)|webhook_url|
 # EXAMPLE -> add_discord_webhook|1|status|https://discord.com/api/webhooks/...|
+
+# Holidays should be enabled here to check the duration of it else it wont check even if have to be active
+# after adding with /holiday add it in here and reload the config
+# enabled_holidays|...|...|...
+enabled_holidays|comet|
+
+# Filter Signal Jammed worlds on select menu
+# This may be usefull if player count is low
+filter_jammed_worlds|0
+
+# World balancer is for; CARNIVAL5, CARNIVAL3, WOLFWORLD_6, BLARNEY3_24 type worlds
+# Enable/Disabled world balancing by setting it 1 or 0
+enable_world_balance|1|
+
+# balance_world|world_name|import_file_name|import_close_file_name|max_instance|keep_id|holiday_key|
+# import_file_name, import_close_file_name: if holiday_key not empty loads import_file_name if holiday enabled else loads import_close_file_name like GROWGANOTH worlds
+# if holiday_key empty and theres import_file_name it gonna load it else generates default world
+# max_instance: world count range like if max_instance is 15, it gonna balance in range CARNIVAIL1-CARNIVAL15
+# keep_id: use this for BLARNEY4_56, WOLFWORLD_2 like worlds. idk how to explain lol
+balance_world|START|||15|0||
+balance_world|WOLFWORLD|||8|1||
+
+# to start spawning fossil there need to be min "fossil_spawn_min_world" active worlds in subserver, each subserver counts their active worlds not shared
+# after that every "fossil_spawn_seconds" it gonna choose random world and random rock in that world if available to change it with fossil rock
+fossil_spawn_seconds|500
+fossil_spawn_min_world|6
 
 # Network Burst/Threshold
 # Mostly depends on your cpu, templates are representative
@@ -73,7 +105,3 @@ net_panic_burst|1024
 # net_normal_burst|128
 # net_heavy_burst|512
 # net_panic_burst|4096
-
-# Filter Signal Jammed worlds on select menu
-# This may be usefull if player count is low
-filter_jammed_worlds|1

@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <stdint.h>
 #include <string>
+#include <vector>
 
 #define RANDOM_BYTE_MAX_RETRIES 2
 
@@ -28,8 +29,12 @@ uint32 GetSecondsFromMidnight();
 string GetLoadAvgString();
 string GetFileNameFromPath(const string& path);
 bool CreateDir(const string& path);
-void GetTimeLocal(tm* outTime, const time_t* timer);
+void GetTimeLocal(time_t* currentTime, int32* month, int32* day, int32* year, int32* hour, int32* minute,
+                  int32* second);
+void GetTimeLocal(tm* outTime, time_t* timer);
 void GetTimeUTC(tm* outTime, const time_t* timer);
+uint64 GetLastWriteTimeOfFile(const string& path); // returns ns
+std::vector<string> ScanDirectoryFiles(const string& dirPath, bool recursive = true, const string& extension = "");
 
 #ifdef _WIN32
 std::wstring UTF8ToUTF16(const string& str);

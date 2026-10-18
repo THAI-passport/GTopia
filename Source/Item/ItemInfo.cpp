@@ -203,6 +203,12 @@ void ItemInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, uin
         uint8 unk = 0;
         memBuffer.ReadWrite(unk, write);
     }
+
+    if (version > 26)
+    {
+        string unk;
+        memBuffer.ReadWriteString(unk, write);
+    }
 }
 
 bool ItemInfo::IsBackground()
@@ -234,6 +240,11 @@ bool ItemInfo::IsLOSBlocking()
     return false;
 }
 
+eBodyPart ItemInfo::GetBodyPart()
+{
+    return (type == ITEM_TYPE_ARTIFACT ? BODY_PART_ARTIFACT : (eBodyPart)bodyPart);
+}
+
 bool IsIllegalItem(int16 itemID)
 {
     switch (itemID)
@@ -259,6 +270,10 @@ bool IsWorldLock(int16 itemID)
         case ITEM_ID_HARMONIC_LOCK:
         case ITEM_ID_ROBOTIC_LOCK:
         case ITEM_ID_ROYAL_LOCK:
+        case ITEM_ID_EMERALD_LOCK:
+        case ITEM_ID_BLUE_GEM_LOCK:
+        case ITEM_ID_BUNNY_LOCK:
+        case ITEM_ID_MY_FIRST_WORLD_LOCK:
             return true;
 
         default:
@@ -331,6 +346,80 @@ uint16 GetMaxTilesToLock(int16 itemID)
 
         default:
             return 0;
+    }
+}
+
+int32 GetFossilVersionOfRock(int32 rockID)
+{
+    switch (rockID)
+    {
+        case ITEM_ID_ROCK:
+            return ITEM_ID_FOSSIL_ROCK;
+        case ITEM_ID_DEEP_ROCK:
+            return ITEM_ID_DEEP_FOSSIL_ROCK;
+        case ITEM_ID_BOULDER:
+            return ITEM_ID_FOSSIL_BOULDER;
+        case ITEM_ID_ASTEROID:
+            return ITEM_ID_FOSSILROID;
+        case ITEM_ID_IGNEOUS_ROCK:
+            return ITEM_ID_IGNEOUS_FOSSIL_ROCK;
+        case ITEM_ID_MARS_ROCK:
+            return ITEM_ID_ALIEN_FOSSIL_ROCK;
+        default:
+            return ITEM_ID_BLANK;
+    }
+}
+
+int32 GetRockVersionOfFossil(int32 fossilID)
+{
+    switch (fossilID)
+    {
+        case ITEM_ID_FOSSIL_ROCK:
+            return ITEM_ID_ROCK;
+        case ITEM_ID_DEEP_FOSSIL_ROCK:
+            return ITEM_ID_DEEP_ROCK;
+        case ITEM_ID_FOSSIL_BOULDER:
+            return ITEM_ID_BOULDER;
+        case ITEM_ID_FOSSILROID:
+            return ITEM_ID_ASTEROID;
+        case ITEM_ID_IGNEOUS_FOSSIL_ROCK:
+            return ITEM_ID_IGNEOUS_ROCK;
+        case ITEM_ID_ALIEN_FOSSIL_ROCK:
+            return ITEM_ID_MARS_ROCK;
+        default:
+            return ITEM_ID_BLANK;
+    }
+}
+
+bool IsNormalRock(int32 itemID)
+{
+    switch (itemID)
+    {
+        case ITEM_ID_ROCK:
+        case ITEM_ID_DEEP_ROCK:
+        case ITEM_ID_BOULDER:
+        case ITEM_ID_ASTEROID:
+        case ITEM_ID_IGNEOUS_ROCK:
+        case ITEM_ID_MARS_ROCK:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool IsFossilRock(int32 itemID)
+{
+    switch (itemID)
+    {
+        case ITEM_ID_FOSSIL_ROCK:
+        case ITEM_ID_DEEP_FOSSIL_ROCK:
+        case ITEM_ID_FOSSIL_BOULDER:
+        case ITEM_ID_FOSSILROID:
+        case ITEM_ID_IGNEOUS_FOSSIL_ROCK:
+        case ITEM_ID_ALIEN_FOSSIL_ROCK:
+            return true;
+        default:
+            return false;
     }
 }
 

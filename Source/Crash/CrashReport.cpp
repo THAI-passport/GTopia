@@ -34,9 +34,8 @@ bool InitializeCrashLogFile(const char* appName, uint16 appID)
     CloseCrashLogFile();
     gHasLoggedCrashReport = false;
 
-    time_t currentTime = std::time(nullptr);
-    tm timeInfo{};
-    GetTimeLocal(&timeInfo, &currentTime);
+    int32 m, d, y, h, min, s;
+    GetTimeLocal(nullptr, &m, &d, &y, &h, &min, &s);
 
     CreateDir(GetProgramPath() + "/logs");
     CreateDir(GetProgramPath() + "/logs/crash");
@@ -44,14 +43,12 @@ bool InitializeCrashLogFile(const char* appName, uint16 appID)
     if (appID > 0)
     {
         std::snprintf(gCrashFilePath, sizeof(gCrashFilePath), "logs/crash/%s-%u-%04d-%02d-%02d_%02d-%02d-%02d.log",
-                      appName, appID, timeInfo.tm_year + 1900, timeInfo.tm_mon + 1, timeInfo.tm_mday, timeInfo.tm_hour,
-                      timeInfo.tm_min, timeInfo.tm_sec);
+                      appName, appID, y, m, d, h, min, s);
     }
     else
     {
         std::snprintf(gCrashFilePath, sizeof(gCrashFilePath), "logs/crash/%s-%04d-%02d-%02d_%02d-%02d-%02d.log",
-                      appName, timeInfo.tm_year + 1900, timeInfo.tm_mon + 1, timeInfo.tm_mday, timeInfo.tm_hour,
-                      timeInfo.tm_min, timeInfo.tm_sec);
+                      appName, y, m, d, h, min, s);
     }
 
 #ifdef _WIN32

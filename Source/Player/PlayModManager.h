@@ -25,6 +25,7 @@ public:
     bool Load(const string& filePath);
 
     PlayMod* GetPlayMod(ePlayModType type);
+    uint32 GetPlayModSize() const { return m_playMods.size(); }
 
 private:
     std::vector<PlayMod> m_playMods;

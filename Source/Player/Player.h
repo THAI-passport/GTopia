@@ -14,6 +14,7 @@
 #include <memory>
 #endif
 
+// change this for news, lazy
 enum ePlayerLogonMode
 {
     LOGON_MODE_WELCOME = 1,
@@ -111,9 +112,12 @@ public:
     void SendOnBillboardChange(int32 itemID, bool showBoard, float price, bool isLockPerItem, bool isBuy = false);
     void SendOnForceTradeEnded();
     void SendOnKilled();
+    void SendOnRaceStart();
+    void SendOnRaceEnd(uint32 timeMS);
     void SendFakePingReply();
 
     void PlaySFX(const string& fileName, int32 delay = -1);
+    void PlayMusic(const string& fileName, int32 delay = -1);
 
     void SetNetID(uint32 netID) { m_netID = netID; };
     uint32 GetNetID() const { return m_netID; }

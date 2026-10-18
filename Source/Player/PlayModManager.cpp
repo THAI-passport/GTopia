@@ -2,6 +2,7 @@
 #include "../IO/File.h"
 #include "../IO/Log.h"
 #include "../Item/ItemInfoManager.h"
+#include "../Utils/ConfigDB.h"
 #include "../Utils/StringUtils.h"
 #include "CharacterData.h"
 
@@ -99,110 +100,109 @@ PlayModManager::~PlayModManager() {}
 
 bool PlayModManager::Load(const string& filePath)
 {
-    File file;
-    if (!file.Open(filePath))
-    {
+    ConfigDB cfg;
+    if (!cfg.Load(filePath))
         return false;
-    }
 
-    uint32 fileSize = file.GetSize();
-    string fileData(fileSize, '\0');
-    if (file.Read(fileData.data(), fileSize) != fileSize)
+    for (auto& line : cfg.Lines())
     {
-        return false;
-    }
+        const string& key = line.GetString(0);
 
-    auto lines = Split(fileData, '\n');
-
-    for (auto& line : lines)
-    {
-        if (line.empty() || line[0] == '#')
+        if (key == "add_playmod")
         {
+            if (!line.Require(4))
+                continue;
+
+            PlayMod playMod;
+            playMod.m_displayItem = line.GetInt(1);
+            playMod.m_name = line.GetString(2);
+            playMod.m_addMessage = line.GetString(3);
+            playMod.m_removeMessage = line.GetString(4);
+            playMod.m_modType = (ePlayModType)(m_playMods.size() + 1);
+
+            m_playMods.push_back(std::move(playMod));
             continue;
         }
 
-        auto args = Split(line, '|');
-        if (args[0] == "add_playmod")
+        if (m_playMods.empty())
         {
-            PlayMod playMod;
-            playMod.m_displayItem = (uint16)ToUInt(args[1]);
-            playMod.m_name = args[2];
-            playMod.m_addMessage = args[3];
-            playMod.m_removeMessage = args[4];
-
-            playMod.m_modType = ePlayModType(m_playMods.size() + 1);
-
-            m_playMods.push_back(std::move(playMod));
+            LOGGER_LOG_ERROR("Configuration key '%s' encountered before 'add_playmod'", key.c_str());
+            continue;
         }
 
-        if (args[0] == "set_char_flags")
+        PlayMod& currentMod = m_playMods.back();
+
+        if (key == "set_char_flags")
         {
-            for (uint8 i = 1; i < args.size(); ++i)
+            for (uint32 i = 1; i < line.GetArgSize(); ++i)
             {
-                m_playMods.back().m_charState |= StrToCharacterStateFlag(args[i]);
+                currentMod.m_charState |= StrToCharacterStateFlag(line.GetString(i));
             }
         }
 
-        if (args[0] == "set_char2_flags")
+        if (key == "set_char2_flags")
         {
-            for (uint8 i = 1; i < args.size(); ++i)
+            for (uint32 i = 1; i < line.GetArgSize(); ++i)
             {
-                m_playMods.back().m_char2State |= StrToCharacterState2Flag(args[i]);
+                currentMod.m_char2State |= StrToCharacterState2Flag(line.GetString(i));
             }
         }
 
-        if (args[0] == "set_skin_color")
+        if (key == "set_skin_color")
         {
-            m_playMods.back().m_skinColor = ToColor(args[1], ',');
+            currentMod.m_skinColor = ToColor(line.GetString(1), ',');
         }
 
-        if (args[0] == "set_timer")
+        if (key == "set_timer")
         {
-            m_playMods.back().m_durationTime = ToInt(args[1]);
+            currentMod.m_durationTime = line.GetInt(1);
         }
 
-        if (args[0] == "set_punch_damage")
+        if (key == "set_punch_damage")
         {
-            m_playMods.back().m_punchDamage = ToFloat(args[1]);
+            currentMod.m_punchDamage = line.GetFloat(1);
         }
 
-        if (args[0] == "set_punch_power")
+        if (key == "set_punch_power")
         {
-            m_playMods.back().m_punchPower = ToFloat(args[1]);
+            currentMod.m_punchPower = line.GetFloat(1);
         }
 
-        if (args[0] == "set_build_range")
+        if (key == "set_build_range")
         {
-            m_playMods.back().m_buildRange = ToInt(args[1]);
+            currentMod.m_buildRange = line.GetInt(1);
         }
 
-        if (args[0] == "set_speed")
+        if (key == "set_speed")
         {
-            m_playMods.back().m_speed = ToFloat(args[1]);
+            currentMod.m_speed = line.GetFloat(1);
         }
 
-        if (args[0] == "set_punch_type")
+        if (key == "set_punch_type")
         {
-            m_playMods.back().m_punchType = (uint8)ToInt(args[1]);
+            currentMod.m_punchType = (uint8)line.GetInt(1);
         }
 
-        if (args[0] == "set_items")
+        if (key == "set_audio")
+        {
+            currentMod.m_audioFile = line.GetString(1);
+        }
+
+        if (key == "set_items")
         {
             ItemInfoManager* pItemMgr = GetItemInfoManager();
-            ePlayModType modType = m_playMods.back().m_modType;
+            ePlayModType modType = currentMod.m_modType;
 
-            for (uint16 i = 1; i < args.size(); ++i)
+            for (uint32 i = 1; i < line.GetArgSize() - 1; ++i)
             {
-                int32 itemID = 0;
-                if (ToInt(args[i], itemID) != TO_INT_SUCCESS)
-                {
+                int32 itemID = line.GetInt(i);
+                if (itemID == 0)
                     continue;
-                }
 
                 ItemInfo* pItem = pItemMgr->GetItemByID(itemID);
                 if (!pItem)
                 {
-                    LOGGER_LOG_ERROR("Failed to setup playmod for item %d its not exists", itemID);
+                    LOGGER_LOG_ERROR("Failed to setup playmod for item %d, it does not exist", itemID);
                     continue;
                 }
 
@@ -211,22 +211,19 @@ bool PlayModManager::Load(const string& filePath)
         }
     }
 
+    LOGGER_LOG_INFO("Successfully loaded %d playmods", m_playMods.size());
     return true;
 }
 
 PlayMod* PlayModManager::GetPlayMod(ePlayModType type)
 {
     if (type > m_playMods.size())
-    {
         return nullptr;
-    }
 
     for (auto& playmod : m_playMods)
     {
         if (playmod.m_modType == type)
-        {
             return &playmod;
-        }
     }
 
     return nullptr;

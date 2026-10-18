@@ -454,7 +454,7 @@ void WorldNPC::CheckGhostCanSlime(WorldNPCManager* pNPCMgr)
                     pWorld->SendTalkBubbleAndConsoleToAll("`2CHOMP CHOMP``", false, pPlayer);
                 }
 
-                // kill player
+                pPlayer->OnDeath();
                 hitAnyPlayer = true;
                 break;
             }

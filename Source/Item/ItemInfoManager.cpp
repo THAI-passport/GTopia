@@ -5,7 +5,10 @@
 #include "../Proton/ProtonUtils.h"
 #include "../Utils/ConfigDB.h"
 #include "../Utils/StringUtils.h"
+
+#ifdef SERVER_GAME
 #include "../Utils/ZLibUtils.h"
+#endif
 
 int32 ItemInfoManager::sMaxPositiveID = 0;
 
@@ -162,7 +165,7 @@ bool ItemInfoManager::Load(const string& filePath)
 
         if (key == "add_cloth")
         {
-            if (!line.Require(9))
+            if (!line.Require(10))
                 return false;
 
             ItemInfo item;
@@ -175,7 +178,7 @@ bool ItemInfoManager::Load(const string& filePath)
             item.visualEffect = StrToItemVisualEffect(line.GetString(7));
             item.storage = StrToStorageType(line.GetString(8));
             item.bodyPart = StrToBodyPartType(line.GetString(9));
-            item.type = ITEM_TYPE_CLOTHES;
+            item.type = StrToItemType(line.GetString(10));
 
             lastItemID = item.id;
             m_items.push_back(std::move(item));
@@ -583,6 +586,7 @@ void ItemInfoManager::LoadFileHashes(const std::unordered_map<string, uint32>& h
 void ItemInfoManager::SaveToClientData(bool forOgg, uint16 minVersion, uint16 maxVersion, bool allSupportZLib,
                                        uint32& totalOutSize)
 {
+#ifdef SERVER_GAME
     if (m_version != 0)
     {
         minVersion = m_version;
@@ -632,6 +636,7 @@ void ItemInfoManager::SaveToClientData(bool forOgg, uint16 minVersion, uint16 ma
 
         memBuffer.Destroy();
     }
+#endif
 }
 
 ItemInfo* ItemInfoManager::GetItemByName(const string& name)

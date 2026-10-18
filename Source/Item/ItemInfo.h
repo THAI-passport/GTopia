@@ -52,7 +52,10 @@ public:
     uint8 collisionType = 0;
     uint8 hp = 0;
     int32 restoreTime = 0;
+
+    // use GetBodyPart() instead else gonna broken on artifacts
     uint8 bodyPart = 0;
+
     int16 rarity = 0;
     uint8 maxCanHold = 200;
 
@@ -127,6 +130,7 @@ public:
     bool IsUnlimited() const { return maxCanHold == 0; }
     bool IsBackground();
     bool IsLOSBlocking();
+    eBodyPart GetBodyPart();
 };
 
 bool IsIllegalItem(int16 itemID);
@@ -138,6 +142,10 @@ bool IsGaunletOfElements(int16 itemID);
 bool IsPathMarker(int16 itemID);
 
 uint16 GetMaxTilesToLock(int16 itemID);
+int32 GetFossilVersionOfRock(int32 rockID);
+int32 GetRockVersionOfFossil(int32 fossilID);
+bool IsNormalRock(int32 itemID);
+bool IsFossilRock(int32 itemID);
 
 void GetTreeSpawnInfo(ItemInfo* pItem, uint32& fruitCount, bool& dropSeed);
 uint32 GetGemCountHarvestTree(ItemInfo* pSeed);

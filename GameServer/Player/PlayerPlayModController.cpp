@@ -10,38 +10,18 @@ PlayerPlayModController::~PlayerPlayModController() {}
 
 ActivePlayMod* PlayerPlayModController::AddPlayMod(ePlayModType type)
 {
-    if (type == PLAYMOD_TYPE_NONE || m_activeMods.size() >= 50)
+    ActivePlayMod* pActiveMod = PlayerPlayMod::AddPlayMod(type);
+    if (!pActiveMod)
         return nullptr;
 
     PlayMod* pConfig = GetPlayModManager()->GetPlayMod(type);
-    if (!pConfig)
-        return nullptr;
-
-    bool isOnlineOnly = IsOnlineOnlyPlayMod(type);
-    uint32 durationSec = pConfig->GetTime();
-
-    if (ActivePlayMod* pExist = GetActiveMod(type))
+    if (pConfig && !pConfig->GetAddMessage().empty() && m_pPlayer && !GetActiveMod(type))
     {
-        if (isOnlineOnly)
-        {
-            pExist->timeValue = durationSec;
-        }
-        else
-        {
-            pExist->timeValue = (durationSec > 0) ? ((uint32)(Time::GetTimeSinceEpoch()) + durationSec) : 0;
-        }
-
-        pExist->updateTimer.Reset();
-        RecalculateStats();
-        return pExist;
-    }
-
-    if (!pConfig->GetAddMessage().empty())
-    {
+        uint32 durationSec = pConfig->GetTime();
         if (durationSec != 0)
         {
             m_pPlayer->SendOnConsoleMessage("`o" + pConfig->GetName() + " (`$" + pConfig->GetAddMessage() +
-                                            " `omod added, `$" + Time::ConvertTimeToStr(durationSec * 1000) +
+                                            " `omod added, `$" + Time::ConvertTimeToStr((uint64)(durationSec) * 1000) +
                                             "`oleft)");
         }
         else
@@ -49,75 +29,29 @@ ActivePlayMod* PlayerPlayModController::AddPlayMod(ePlayModType type)
             m_pPlayer->SendOnConsoleMessage("`o" + pConfig->GetName() + " (`$" + pConfig->GetAddMessage() +
                                             " `omod added)");
         }
+
+        m_pPlayer->PlaySFX(pConfig->GetAudioFile());
     }
-
-    ActivePlayMod newMod;
-    newMod.type = type;
-
-    if (isOnlineOnly)
-    {
-        newMod.timeValue = durationSec;
-    }
-    else
-    {
-        newMod.timeValue = (durationSec > 0) ? ((uint32)(Time::GetTimeSinceEpoch()) + durationSec) : 0;
-    }
-
-    newMod.updateTimer.Reset();
-    newMod.customTickTimer.Reset();
-
-    m_activeMods.push_back(std::move(newMod));
 
     RecalculateStats();
-    return &m_activeMods.back();
+    return pActiveMod;
 }
 
 bool PlayerPlayModController::RemovePlayMod(ePlayModType type)
 {
-    for (auto it = m_activeMods.begin(); it != m_activeMods.end(); ++it)
+    if (PlayerPlayMod::RemovePlayMod(type))
     {
-        if (it->type == type)
+        PlayMod* pConfig = GetPlayModManager()->GetPlayMod(type);
+        if (pConfig && !pConfig->GetRemoveMessage().empty())
         {
-            if (&(*it) != &m_activeMods.back())
-            {
-                *it = std::move(m_activeMods.back());
-            }
-            m_activeMods.pop_back();
-
-            PlayMod* pConfig = GetPlayModManager()->GetPlayMod(type);
-            if (pConfig && !pConfig->GetRemoveMessage().empty())
-            {
-                m_pPlayer->SendOnConsoleMessage("`o" + pConfig->GetName() + " (`$" + pConfig->GetRemoveMessage() +
-                                                " `omod removed)");
-            }
-
-            RecalculateStats();
-            return true;
+            m_pPlayer->SendOnConsoleMessage("`o" + pConfig->GetName() + " (`$" + pConfig->GetRemoveMessage() +
+                                            " `omod removed)");
         }
+        RecalculateStats();
+        return true;
     }
 
     return false;
-}
-
-bool PlayerPlayModController::HasPlayMod(ePlayModType type)
-{
-    for (auto& mod : m_activeMods)
-    {
-        if (mod.type == type)
-            return true;
-    }
-
-    return false;
-}
-
-ActivePlayMod* PlayerPlayModController::GetActiveMod(ePlayModType type)
-{
-    for (auto& mod : m_activeMods)
-    {
-        if (mod.type == type)
-            return &mod;
-    }
-    return nullptr;
 }
 
 void PlayerPlayModController::RecalculateStats()
@@ -321,6 +255,28 @@ void PlayerPlayModController::RecalculateStats()
     charData.needSkinUpdate = true;
 }
 
+void PlayerPlayModController::BuildActiveModsDialog(DialogBuilder& db)
+{
+    PlayModManager* pConfigMgr = GetPlayModManager();
+    for (auto& mod : m_activeMods)
+    {
+        PlayMod* pConfig = pConfigMgr->GetPlayMod(mod.type);
+        if (!pConfig)
+            continue;
+
+        string label = pConfig->GetName();
+        uint32 remainingSec = mod.GetRemainingSeconds();
+        if (mod.type == PLAYMOD_TYPE_CHARGING_GEIGER_COUNTER)
+        {
+        }
+        if (remainingSec > 0)
+        {
+            label += " `o(`w" + Time::ConvertTimeToStr((uint64)(remainingSec) * 1000) + " `oleft)";
+        }
+        db.AddLabelWithIcon(label, ToItemClientID(pConfig->GetDisplayItem()));
+    }
+}
+
 void PlayerPlayModController::Update()
 {
     bool needRefresh = false;
@@ -390,59 +346,9 @@ void PlayerPlayModController::Update()
     }
 }
 
-void PlayerPlayModController::BuildActiveModsDialog(DialogBuilder& db)
-{
-    PlayModManager* pConfigMgr = GetPlayModManager();
-    for (auto& mod : m_activeMods)
-    {
-        PlayMod* pConfig = pConfigMgr->GetPlayMod(mod.type);
-        if (!pConfig)
-            continue;
-
-        string label = pConfig->GetName();
-        uint32 remainingSec = mod.GetRemainingSeconds();
-        if (mod.type == PLAYMOD_TYPE_CHARGING_GEIGER_COUNTER)
-        {
-        }
-        if (remainingSec > 0)
-        {
-            label += " `o(`w" + Time::ConvertTimeToStr(remainingSec * 1000) + " `oleft)";
-        }
-        db.AddLabelWithIcon(label, pConfig->GetDisplayItem());
-    }
-}
-
-uint32 PlayerPlayModController::GetMemEstimate()
-{
-    return sizeof(uint16) * 2 + (m_activeMods.size() * (sizeof(uint16) + sizeof(uint32) + sizeof(int32)));
-}
-
 void PlayerPlayModController::Serialize(MemoryBuffer& memBuffer, bool write)
 {
-    uint16 version = PLAYER_MOD_CONTROLLER_VERSION;
-    memBuffer.ReadWrite(version, write);
-
-    uint16 modCount = m_activeMods.size();
-    memBuffer.ReadWrite(modCount, write);
-
-    if (!write)
-    {
-        m_activeMods.resize(modCount);
-    }
-
-    for (uint16 i = 0; i < modCount; ++i)
-    {
-        ActivePlayMod& activeMod = m_activeMods[i];
-        uint16 rawType = (uint16)(activeMod.type);
-        memBuffer.ReadWrite(rawType, write);
-        if (!write)
-        {
-            activeMod.type = (ePlayModType)(rawType);
-        }
-
-        memBuffer.ReadWrite(activeMod.timeValue, write);
-        memBuffer.ReadWrite(activeMod.extraData, write);
-    }
+    PlayerPlayMod::Serialize(memBuffer, write);
 
     if (!write)
     {

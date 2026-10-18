@@ -67,6 +67,9 @@ void DatabaseWorker::Update()
     {
         do
         {
+            if (!m_pDatabaseMgr)
+                return;
+
             uint64 taskStartTime = Time::GetSystemTime();
 
             QueryTaskResult taskRes;
@@ -166,6 +169,11 @@ void DatabaseWorker::Update()
             if (succeed && (taskReq.flags & QUERY_FLAG_RETURN_INCREMENT))
             {
                 taskRes.increment = m_pDatabaseMgr->GetLastInsertID();
+            }
+
+            if (succeed)
+            {
+                taskRes.affectedRowCount = m_pDatabaseMgr->GetAffectedRowCount();
             }
 
             taskRes.ownerID = taskReq.ownerID;

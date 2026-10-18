@@ -70,7 +70,10 @@ private:
 
 private:
     std::unordered_map<uint32, WorldSession> m_worldSessionsByInstance;
-    std::unordered_map<string, std::vector<uint32>> m_worldInstanceByName;
+    std::unordered_map<string, uint32>
+        m_worldInstanceByName; // making it vector was unneccasry i guess, since multiple
+                               // servers cant have same named world no? also the instance id too
+                               // but lets keep it for now maybe we can implement that thing....
 };
 
 WorldManager* GetWorldManager();

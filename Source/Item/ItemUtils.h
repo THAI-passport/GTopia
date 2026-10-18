@@ -212,6 +212,10 @@ enum eBodyPart
     BODY_PART_HAIR = 7,
     BODY_PART_CHESTITEM = 8,
 
+    // normally there is no body part type 9
+    // need to becareful with body_part_size if working with client side
+    BODY_PART_ARTIFACT = 9,
+
     BODY_PART_SIZE
 };
 

@@ -6,9 +6,28 @@ WorldBalancer::WorldBalancer() : m_enabled(false) {}
 
 WorldBalancer::~WorldBalancer() {}
 
-bool WorldBalancer::GetBalancedWorldName(const string& worldName, string& out)
+string WorldBalancer::WorldBalancerSelectBestActiveWorld(const string& worldName)
 {
-    return false;
+    return "";
+}
+
+bool WorldBalancer::IsBalancerEnabled() const
+{
+    if (!m_pGameConfig)
+        return false;
+
+    return m_pGameConfig->isWorldBalancerEnabled;
+}
+
+void WorldBalancer::RegisterBalancedWorldsFromConfig()
+{
+    if (!m_pGameConfig)
+        return;
+
+    for (auto& balancer : m_pGameConfig->balancedWorlds)
+    {
+        RegisterBalancedWorld(balancer);
+    }
 }
 
 void WorldBalancer::RegisterBalancedWorld(WorldBalanceConfigSchema& balancer)
@@ -16,156 +35,145 @@ void WorldBalancer::RegisterBalancedWorld(WorldBalanceConfigSchema& balancer)
     if (balancer.worldName.empty() || balancer.maxInstance == 0)
         return;
 
-    balancer.id = (m_compactWorlds.size() + m_exactWorlds.size());
+    balancer.id = (m_worlds.size() + 1);
     balancer.worldName = ToUpper(balancer.worldName);
 
-    if (balancer.keepExactId)
-        m_exactWorlds.insert_or_assign(balancer.worldName, balancer);
-    else
-        m_compactWorlds.insert_or_assign(balancer.worldName, balancer);
+    m_worlds.insert_or_assign(balancer.worldName, balancer);
 }
 
-WorldBalanceConfigSchema* WorldBalancer::GetBalancerByNameMatch(const string& inputName) // wbs
+WorldBalanceConfigSchema* WorldBalancer::GetBalancedWorldConfig(const string& inputName)
 {
-    if (inputName.empty())
+    if (inputName.empty() || m_worlds.empty())
         return nullptr;
 
     string worldName = ToUpper(inputName);
-    usize underscore = worldName.rfind('_');
 
-    if (underscore != string::npos)
+    auto isValidInstance = [](const string& suffix, uint32 maxInstance) -> bool
     {
-        string prefix = worldName.substr(0, underscore);
-        string suffix = worldName.substr(underscore + 1);
+        if (suffix.empty() || suffix[0] == '0')
+            return false;
 
-        auto it = m_exactWorlds.find(prefix);
-        if (it == m_exactWorlds.end())
-            return nullptr;
+        uint32 instanceId = 0;
+        if (ToUInt(suffix, instanceId) != TO_INT_SUCCESS)
+            return false;
 
-        if (suffix.empty() || suffix.front() == '0')
-            return nullptr;
+        return instanceId > 0 && instanceId <= maxInstance;
+    };
 
-        uint32 id;
-        if (ToUInt(suffix, id) != TO_INT_SUCCESS)
-            return nullptr;
+    auto itExact = m_worlds.find(worldName);
+    if (itExact != m_worlds.end())
+        return itExact->second.keepExactId ? nullptr : &itExact->second;
 
-        if (id == 0 || id > it->second.maxInstance)
-            return nullptr;
-
-        return &it->second;
+    usize underscorePos = worldName.rfind('_');
+    if (underscorePos != string::npos && underscorePos > 0)
+    {
+        auto it = m_worlds.find(worldName.substr(0, underscorePos));
+        if (it != m_worlds.end() && it->second.keepExactId)
+        {
+            if (isValidInstance(worldName.substr(underscorePos + 1), it->second.maxInstance))
+                return &it->second;
+        }
+        return nullptr;
     }
 
-    usize pos = worldName.size();
-    while (pos > 0 && IsDigit(worldName[pos - 1]))
-        --pos;
+    usize digitStartPos = worldName.size();
+    while (digitStartPos > 0 && IsDigit(worldName[digitStartPos - 1]))
+        --digitStartPos;
 
-    if (pos == worldName.size())
-        return nullptr;
-
-    string prefix = worldName.substr(0, pos);
-    string suffix = worldName.substr(pos);
-
-    auto it = m_compactWorlds.find(prefix);
-    if (it == m_compactWorlds.end())
-        return nullptr;
-
-    if (suffix.front() == '0')
-        return nullptr;
-
-    uint32 id;
-    if (ToUInt(suffix, id) != TO_INT_SUCCESS)
-        return nullptr;
-
-    if (id == 0 || id > it->second.maxInstance)
-        return nullptr;
-
-    return &it->second;
-}
-
-bool WorldBalancer::IsBalancedWorld(const string& worldName)
-{
-    WorldBalanceConfigSchema* pBalancer = GetBalancerByNameMatch(worldName);
-    if (!pBalancer)
-        return false;
-
-    uint32 instanceID = 0;
-    bool foundUnder = false;
-
-    if (worldName.size() > pBalancer->worldName.size())
+    if (digitStartPos > 0 && digitStartPos < worldName.size())
     {
-        string suffix = worldName.substr(pBalancer->worldName.size());
-
-        if (!suffix.empty())
+        auto it = m_worlds.find(worldName.substr(0, digitStartPos));
+        if (it != m_worlds.end() && !it->second.keepExactId)
         {
-            if (suffix[0] == '_')
-            {
-                suffix = suffix.substr(1);
-                foundUnder = true;
-            }
-
-            if (!suffix.empty())
-            {
-                if (ToUInt(suffix, instanceID) != TO_INT_SUCCESS)
-                    return false;
-            }
+            if (isValidInstance(worldName.substr(digitStartPos), it->second.maxInstance))
+                return &it->second;
         }
     }
 
-    if (instanceID > pBalancer->maxInstance || (pBalancer->keepExactId && !foundUnder))
-        return false;
-
-    return true;
+    return nullptr;
 }
 
-string WorldBalancer::GetBalancedFinalWorldName(const string& worldName)
+uint32 WorldBalancer::GetBalancedWorldID(const string& inputName)
 {
-    auto pBalancer = GetBalancerByNameMatch(worldName);
-    if (!pBalancer || pBalancer->alwaysCreate)
+    WorldBalanceConfigSchema* pConfig = GetBalancedWorldConfig(inputName);
+    return pConfig ? pConfig->id : 0;
+}
+
+uint32 WorldBalancer::WorldBalancerUpdateUserCount(const string& inputName, uint32 userCount)
+{
+    if (inputName.empty())
+        return 0;
+
+    string worldName = ToUpper(inputName);
+
+    auto itActive = m_activeWorlds.find(worldName);
+    if (itActive != m_activeWorlds.end())
+    {
+        itActive->second.userCount = userCount;
+        return userCount;
+    }
+
+    WorldBalanceConfigSchema* pConfig = GetBalancedWorldConfig(worldName);
+    if (pConfig)
+    {
+        ActiveBalancedWorld newActiveWorld;
+        newActiveWorld.worldName = worldName;
+        newActiveWorld.id = pConfig->id;
+        newActiveWorld.userCount = userCount;
+
+        m_activeWorlds.emplace(worldName, std::move(newActiveWorld));
+        return userCount;
+    }
+
+    return 0;
+}
+
+string WorldBalancer::BalancedWorldName(const string& inputName)
+{
+    if (inputName.empty())
+        return "";
+
+    string worldName = ToUpper(inputName);
+
+    WorldBalanceConfigSchema* pConfig = GetBalancedWorldConfig(worldName);
+    if (!pConfig)
         return worldName;
 
-    int32 rand = RandomRangeInt(1, pBalancer->maxInstance);
+    string candidateName;
+    candidateName.reserve(pConfig->worldName.size() + 16);
 
-    if (pBalancer->keepExactId)
-        return pBalancer->worldName + "_" + ToString(rand);
-    else
-        return pBalancer->worldName + ToString(rand);
+    uint32 minUsers = 99999;
+    uint32 bestInstanceId = 1;
 
-    return worldName;
-}
-
-/*bool WorldBalancer::GetBalancedName(const string& worldName, string& out)
-{
-    if (!IsBalancedWorld(worldName))
-        return false;
-
-    WorldBalanceConfigSchema* pBalancer = GetBalancerByNameMatch(worldName);
-    if (!pBalancer)
-        return false;
-
-    string suffix = worldName.substr(pBalancer->worldName.size());
-    if (worldName.size() > pBalancer->worldName.size())
+    for (uint32 i = 1; i <= pConfig->maxInstance; ++i)
     {
-        if (!suffix.empty())
+        candidateName = pConfig->worldName;
+        if (pConfig->keepExactId)
+            candidateName.push_back('_');
+
+        candidateName += ToString(i);
+
+        uint32 currentCount = 0;
+        auto it = m_activeWorlds.find(candidateName);
+        if (it != m_activeWorlds.end())
         {
-            if (suffix[0] == '_')
-            {
-                suffix = suffix.substr(1);
-            }
+            currentCount = it->second.userCount;
+        }
+
+        if (currentCount < minUsers)
+        {
+            minUsers = currentCount;
+            bestInstanceId = i;
+
+            if (minUsers == 0)
+                break;
         }
     }
 
-    if (!suffix.empty() && pBalancer->keepExactId)
-    {
-        out = worldName;
-        return true;
-    }
+    string result = pConfig->worldName;
+    if (pConfig->keepExactId)
+        result.push_back('_');
 
-    out = pBalancer->worldName;
-    if (pBalancer->keepExactId)
-    {
-        out += "_";
-    }
-
-    out += ToString(RandomRangeInt(1, pBalancer->maxInstance));
-    return true;
-}*/
+    result += ToString(bestInstanceId);
+    return result;
+}

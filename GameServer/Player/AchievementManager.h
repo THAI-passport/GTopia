@@ -82,7 +82,8 @@ struct AchievementInfo
 eAchievementType StrToAchieveType(const string& type);
 ePlayerProgress StrToProgressType(const string& type);
 
-class AchievementManager {
+class AchievementManager
+{
 public:
     AchievementManager();
     ~AchievementManager();

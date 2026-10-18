@@ -1,11 +1,26 @@
 #include "GamePresenceManager.h"
 #include "../Player/PlayerManager.h"
 #include "../Server/ServerManager.h"
+#include "../World/WorldManager.h"
 #include "Network/NetClient.h"
 
 GamePresenceManager::GamePresenceManager() {}
 
 GamePresenceManager::~GamePresenceManager() {}
+
+PlayerPresencePacketElement GamePresenceManager::BuildPlayerElement(uint32 userID)
+{
+    PlayerPresencePacketElement element;
+    element.userID = userID;
+
+    if (PlayerSession* pSession = GetPlayerManager()->GetSessionByID(userID))
+    {
+        element.status = 1;
+        element.name = pSession->name;
+    }
+
+    return element;
+}
 
 void GamePresenceManager::OnTCPPacket(NetClient* pClient, uint16 packetType, TCPPacketReader& reader)
 {
@@ -41,18 +56,30 @@ void GamePresenceManager::OnTCPPacket(NetClient* pClient, uint16 packetType, TCP
         case TCP_PACKET_WORLD_UPDATE:
         {
             std::vector<WorldPresenceUpdateElement> elements;
-            if (!reader.ReadArray(elements) || elements.empty())
+            if (!ReadPresenceElements(reader, elements) || elements.empty())
                 return;
 
-            for (const auto& elem : elements)
+            for (auto& elem : elements)
             {
                 auto it = m_worldSubs.find(elem.worldID);
-                if (it != m_worldSubs.end())
+                if (it == m_worldSubs.end())
+                    continue;
+
+                WorldManager* pWorldManager = GetWorldManager();
+                if (pWorldManager->IsBalancerEnabled())
                 {
-                    it->second.info.playerCount = elem.playerCount;
-                    it->second.info.isSignalJammed = elem.isSignalJammed;
-                    m_dirtyWorlds.insert(elem.worldID);
+                    if (WorldSession* pWorldSession = pWorldManager->GetWorldByInstanceID(elem.worldID))
+                    {
+                        if (pWorldManager->GetBalancedWorldConfig(pWorldSession->worldName))
+                        {
+                            pWorldManager->WorldBalancerUpdateUserCount(pWorldSession->worldName, elem.playerCount);
+                        }
+                    }
                 }
+
+                it->second.info.playerCount = elem.playerCount;
+                it->second.info.isSignalJammed = elem.isSignalJammed;
+                m_dirtyWorlds.insert(elem.worldID);
             }
             break;
         }
@@ -60,17 +87,22 @@ void GamePresenceManager::OnTCPPacket(NetClient* pClient, uint16 packetType, TCP
         case TCP_PACKET_WORLD_REMOVE:
         {
             std::vector<WorldPresenceRemoveElement> elements;
-            if (reader.ReadArray(elements) && !elements.empty())
-            {
-                for (const auto& elem : elements)
-                {
-                    if (m_worldSubs.erase(elem.worldID) > 0)
-                    {
-                        m_dirtyWorlds.erase(elem.worldID);
-                    }
-                }
+            if (!ReadPresenceElements(reader, elements) || elements.empty())
+                return;
 
-                GetServerManager()->SendWorldPresenceRemoveToAll(elements);
+            std::vector<WorldPresenceRemoveElement> removed;
+            for (auto& elem : elements)
+            {
+                if (m_worldSubs.erase(elem.worldID) > 0)
+                {
+                    m_dirtyWorlds.erase(elem.worldID);
+                    removed.push_back(elem);
+                }
+            }
+
+            if (!removed.empty())
+            {
+                GetServerManager()->SendWorldPresenceRemoveToAll(removed);
             }
             break;
         }
@@ -85,16 +117,15 @@ void GamePresenceManager::OnPlayerStatusChanged(uint32 userID, bool loggedOn)
     }
 }
 
-void GamePresenceManager::OnWorldCreated(uint32 worldID, const string& name, uint16 serverID)
+void GamePresenceManager::OnWorldCreated(uint32 worldID, const string& name, uint16 serverID, uint8 worldType)
 {
     WorldPresenceData& data = m_worldSubs[worldID];
     data.serverID = serverID;
     data.info.worldID = worldID;
+    data.info.name = name;
     data.info.playerCount = 0;
-    data.info.isSignalJammed = 0;
-
-    memset(data.info.name, 0, sizeof(data.info.name));
-    strncpy(data.info.name, name.c_str(), sizeof(data.info.name) - 1);
+    data.info.worldType = worldType;
+    data.info.isSignalJammed = false;
 
     GetServerManager()->SendWorldPresenceSnapshotToAll(data.info);
 }
@@ -106,7 +137,10 @@ void GamePresenceManager::OnGameServerDisconnect(uint16 serverID)
     {
         if (it->second.serverID == serverID)
         {
-            removedWorlds.push_back(WorldPresenceRemoveElement{it->first});
+            WorldPresenceRemoveElement rem;
+            rem.worldID = it->first;
+            removedWorlds.push_back(rem);
+
             m_dirtyWorlds.erase(it->first);
             it = m_worldSubs.erase(it);
         }
@@ -119,6 +153,20 @@ void GamePresenceManager::OnGameServerDisconnect(uint16 serverID)
     if (!removedWorlds.empty())
     {
         GetServerManager()->SendWorldPresenceRemoveToAll(removedWorlds);
+    }
+
+    for (auto it = m_playerSubs.begin(); it != m_playerSubs.end();)
+    {
+        it->second.erase(serverID);
+        if (it->second.empty())
+        {
+            m_dirtyUsers.erase(it->first);
+            it = m_playerSubs.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
 }
 
@@ -144,24 +192,13 @@ void GamePresenceManager::Update()
     {
         std::unordered_map<uint16, std::vector<PlayerPresencePacketElement>> packetBatches;
 
-        for (auto userID : m_dirtyUsers)
+        for (uint32 userID : m_dirtyUsers)
         {
             auto it = m_playerSubs.find(userID);
             if (it == m_playerSubs.end())
                 continue;
 
-            PlayerSession* pSession = GetPlayerManager()->GetSessionByID(userID);
-
-            PlayerPresencePacketElement element;
-            element.userID = userID;
-            element.status = (pSession ? 1 : 0);
-
-            memset(element.name, 0, sizeof(element.name));
-            if (pSession)
-            {
-                strncpy(element.name, pSession->name.c_str(), sizeof(element.name) - 1);
-            }
-
+            PlayerPresencePacketElement element = BuildPlayerElement(userID);
             for (uint16 serverID : it->second)
             {
                 packetBatches[serverID].push_back(element);
@@ -169,7 +206,6 @@ void GamePresenceManager::Update()
         }
 
         ServerManager* pServerMgr = GetServerManager();
-
         for (auto& [serverID, dataList] : packetBatches)
         {
             ServerInfo* pServer = pServerMgr->GetServerByID(serverID);
@@ -191,11 +227,14 @@ void GamePresenceManager::Update()
         for (uint32 worldID : m_dirtyWorlds)
         {
             auto it = m_worldSubs.find(worldID);
-            if (it != m_worldSubs.end())
-            {
-                broadcastVec.push_back(
-                    WorldPresenceUpdateElement{worldID, it->second.info.playerCount, it->second.info.isSignalJammed});
-            }
+            if (it == m_worldSubs.end())
+                continue;
+
+            WorldPresenceUpdateElement upd;
+            upd.worldID = worldID;
+            upd.playerCount = it->second.info.playerCount;
+            upd.isSignalJammed = it->second.info.isSignalJammed;
+            broadcastVec.push_back(upd);
         }
 
         if (!broadcastVec.empty())
@@ -217,23 +256,10 @@ void GamePresenceManager::PlayerSubscribe(uint16 serverID, const std::vector<uin
     std::vector<PlayerPresencePacketElement> snapshotResponse;
     snapshotResponse.reserve(userIDs.size());
 
-    for (auto userID : userIDs)
+    for (uint32 userID : userIDs)
     {
         m_playerSubs[userID].insert(serverID);
-
-        PlayerSession* pSession = GetPlayerManager()->GetSessionByID(userID);
-
-        PlayerPresencePacketElement element;
-        element.userID = userID;
-        element.status = (pSession ? 1 : 0);
-
-        memset(element.name, 0, sizeof(element.name));
-        if (pSession)
-        {
-            strncpy(element.name, pSession->name.c_str(), sizeof(element.name) - 1);
-        }
-
-        snapshotResponse.push_back(element);
+        snapshotResponse.push_back(BuildPlayerElement(userID));
     }
 
     GetServerManager()->SendPlayerPresenceSnapshot(pServer, snapshotResponse);
@@ -241,16 +267,17 @@ void GamePresenceManager::PlayerSubscribe(uint16 serverID, const std::vector<uin
 
 void GamePresenceManager::PlayerUnSubscribe(uint16 serverID, const std::vector<uint32>& userIDs)
 {
-    for (auto userID : userIDs)
+    for (uint32 userID : userIDs)
     {
         auto it = m_playerSubs.find(userID);
-        if (it != m_playerSubs.end())
+        if (it == m_playerSubs.end())
+            continue;
+
+        it->second.erase(serverID);
+        if (it->second.empty())
         {
-            it->second.erase(serverID);
-            if (it->second.empty())
-            {
-                m_playerSubs.erase(it);
-            }
+            m_dirtyUsers.erase(userID);
+            m_playerSubs.erase(it);
         }
     }
 }

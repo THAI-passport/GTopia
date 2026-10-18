@@ -148,10 +148,17 @@ void GamePlayer::CheckAccountCB(QueryTaskResult&& result)
     {
         Variant* pID = result.result->GetFieldSafe("ID", 0);
 
-        if (!pID || pID->GetUINT() < 1)
+        if (!pID || pID->GetUINT() == 0)
         {
             pPlayer->SendLogonFailWithLog("`4OOPS! ``Something went wrong please re-connect");
             LOGGER_LOG_WARN("Got player but rows are null or ID is not valid");
+            return;
+        }
+
+        if (GetGameServer()->IsUserLocked(pID->GetUINT()))
+        {
+            pPlayer->SendLogonFailWithLog("`4OOPS! ``Something went wrong please re-connect after a few seconds.");
+            LOGGER_LOG_WARN("Got player %d but its locked due async calls", pID->GetUINT())
             return;
         }
 
@@ -245,9 +252,7 @@ void GamePlayer::CreateAccountCB(QueryTaskResult&& result)
 {
     GamePlayer* pPlayer = GetPlayerManager()->GetPlayerByNetID(result.ownerID);
     if (!pPlayer)
-    {
         return;
-    }
 
     if (result.increment == 0)
     {

@@ -13,6 +13,7 @@ set(SOURCE_UTILS "${SOURCE_ROOT}/Utils")
 set(SOURCE_WORLD "${SOURCE_ROOT}/World")
 set(SOURCE_OS "${SOURCE_ROOT}/OS")
 set(SOURCE_CRASH "${SOURCE_ROOT}/Crash")
+set(SOURCE_HOLIDAY "${SOURCE_ROOT}/Holiday")
 
 set(THIRD_PARTY_ROOT "${CMAKE_CURRENT_LIST_DIR}/../ThirdParty")
 set(THIRD_PARTY_ENET "${THIRD_PARTY_ROOT}/enet")
@@ -21,6 +22,7 @@ set(THIRD_PARTY_NLOHMANN "${THIRD_PARTY_ROOT}/nlohmann")
 set(THIRD_PARTY_BLEND2D "${THIRD_PARTY_ROOT}/blend2d")
 set(THIRD_PARTY_ZLIB "${THIRD_PARTY_ROOT}/zlib")
 set(THIRD_PARTY_ASMJIT "${THIRD_PARTY_ROOT}/asmjit")
+set(THIRD_PARTY_LUAJIT "${THIRD_PARTY_ROOT}/luajit")
 
 set(SOURCE_DEFAULT_FILES
     ${SOURCE_IO}/File.cpp
@@ -99,7 +101,7 @@ set(SOURCE_ZLIB_FILES
 if(WIN32)
     list(APPEND SOURCE_DEFAULT_FILES ${SOURCE_OS}/Windows/WindowsPrecompiled.cpp ${SOURCE_CRASH}/CrashHandler_Windows.cpp)
 else()
-    list(APPEND SOURCE_DEFAULT_FILES ${SOURCE_OS}/Linux/LinuxPrecompiled.cpp ${SOURCE_CRASH}/CrashHandler_Linux.cpp)
+    list(APPEND SOURCE_DEFAULT_FILES ${SOURCE_OS}/Posix/PosixPrecompiled.cpp ${SOURCE_CRASH}/CrashHandler_Posix.cpp)
 endif(WIN32)
 
 function(add_default_sources target_name)

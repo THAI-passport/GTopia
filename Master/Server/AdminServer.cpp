@@ -256,11 +256,13 @@ void AdminServer::HandleCommand(AdminClient* pNetClient, const string& payload)
         pNetClient->SetDisplayName(pConfig->displayName);
         pNetClient->SetAdminLevel(pConfig->adminLevel);
         pNetClient->SetAuthed(true);
+        pNetClient->SetDiscordBot(pConfig->isDiscordBot);
 
         pNetClient->SendPacket("OK");
-        LOGGER_LOG_INFO("[Admin] Client authenticated successfully -> IP: %s | Name: %s | Account: %s | AdminLevel: %d",
-                        pNetClient->GetIP().c_str(), pNetClient->GetDisplayName().c_str(), account.c_str(),
-                        pNetClient->GetAdminLevel());
+        LOGGER_LOG_INFO(
+            "[Admin] Client authenticated successfully -> IP: %s | Name: %s | Account: %s | AdminLevel: %d | IsBot: %d",
+            pNetClient->GetIP().c_str(), pNetClient->GetDisplayName().c_str(), account.c_str(),
+            pNetClient->GetAdminLevel(), pNetClient->IsDiscordBot());
         return;
     }
 
@@ -274,8 +276,52 @@ void AdminServer::HandleCommand(AdminClient* pNetClient, const string& payload)
     if (payload.empty())
         return;
 
-    auto args = Split(payload, ' ');
-    GetAdminCommandManager()->ExecuteCommand(pNetClient, args);
+    if (!pNetClient->IsDiscordBot())
+    {
+        if (pNetClient->IsBusy())
+        {
+            pNetClient->SendPacket("[ERROR] Previous command is still processing. Please wait...");
+            return;
+        }
+    }
+
+    CommandContext ctx;
+    ctx.adminNetID = pNetClient->GetNetID();
+
+    if (pNetClient->IsDiscordBot())
+    {
+        ctx.source = CMD_SOURCE_DISCORD;
+
+        usize delimPos = payload.find('|');
+        if (delimPos == string::npos)
+        {
+            pNetClient->SendPacket("RESP|0|Malformed packet.");
+            return;
+        }
+
+        string reqIDStr = payload.substr(0, delimPos);
+        string cmdStr = payload.substr(delimPos + 1);
+
+        uint32 reqID = 0;
+        if (ToUInt(reqIDStr, reqID) != TO_INT_SUCCESS || reqID == 0)
+        {
+            pNetClient->SendPacket("RESP|0|Failed to parse requestID.");
+            return;
+        }
+
+        ctx.clientReqID = reqID;
+        ctx.args = Split(cmdStr, ' ');
+    }
+    else
+    {
+        ctx.source = CMD_SOURCE_TELNET;
+        ctx.args = Split(payload, ' ');
+    }
+
+    if (ctx.args.empty() || ctx.args[0].empty())
+        return;
+
+    GetAdminCommandManager()->ExecuteCommand(ctx);
 }
 
 AdminClient* AdminServer::GetClientByNetID(uint32 netID)
@@ -325,7 +371,7 @@ bool AdminServer::LoadConfigFromFile(const string& filePath)
             m_skipIPCheck = line.GetUInt(1) != 0;
         }
 
-        if (key == "add_account")
+        if (key == "add_account" || key == "add_discord")
         {
             if (!line.Require(4))
                 return false;
@@ -335,6 +381,9 @@ bool AdminServer::LoadConfigFromFile(const string& filePath)
             config.account = line.GetString(2);
             config.password = line.GetString(3);
             config.adminLevel = line.GetInt(4);
+
+            if (key == "add_discord")
+                config.isDiscordBot = true;
 
             m_clientConfig.push_back(std::move(config));
         }

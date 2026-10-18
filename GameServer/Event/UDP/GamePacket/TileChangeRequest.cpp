@@ -1,6 +1,7 @@
 #include "TileChangeRequest.h"
 #include "../../../Dialog/GameDialogs.h"
 #include "../../../Item/HarmonicCrystal.h"
+#include "../../../Lua/LuaHooks.h"
 #include "Item/ItemInfoManager.h"
 #include "Utils/GrowUtils.h"
 
@@ -95,6 +96,10 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
 
     pItem = GetItemInfoManager()->GetItemByID(pPacket->field_7);
     if (!pItem)
+        return;
+
+    ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+    if (!pTileItem)
         return;
 
     bool needToSendTileUpdate = false;
@@ -233,10 +238,6 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
         pPlayer->SendFakePingReply();
         return;
     }
-
-    ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-    if (!pTileItem)
-        return;
 
     /**
      * donation box, mannequin click with item check
@@ -779,6 +780,28 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             DressupDialog::RequestPunch(pPlayer, pTile))
             return;
 
+        if (pTileItem->type == ITEM_TYPE_FOSSIL)
+        {
+            int16 handItemID = inventory.GetClothByPart(BODY_PART_HAND);
+
+            if (pTile->HasFlag(TILE_FLAG_IS_ON) && handItemID != ITEM_ID_ROCK_CHISEL)
+            {
+                pTile->SetFG(GetRockVersionOfFossil(pTileItem->id), pWorld->GetTileManager());
+                pWorld->SendTileUpdate(pTile);
+                pPlayer->SendOnTalkBubble("`4I smashed a Fossil!``", false);
+                pWorld->SendPlayPositionedToAll(pPlayer, "freeze.wav");
+                return;
+            }
+            else if (handItemID == ITEM_ID_ROCK_HAMMER && RandomRangeInt(0, 100) < 9)
+            {
+                pTile->SetFlag(TILE_FLAG_IS_ON);
+                pWorld->SendTileUpdate(pTile);
+                pPlayer->SendOnTalkBubble("`2I unearthed a Fossil!`` I better be careful getting it out...", false);
+                pWorld->SendPlayPositionedToAll(pPlayer, "switch2.wav");
+                return;
+            }
+        }
+
         tileHealthPercent = pTile->GetHealthPercent();
 
         if (pTileItem->type == ITEM_TYPE_SEED)
@@ -873,7 +896,7 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             if (TileExtra_DisplayBlock* pTileExtra = pTile->GetExtra<TileExtra_DisplayBlock>())
             {
                 if (pTileExtra->itemID != ITEM_ID_BLANK &&
-                    pWorld->GetTileManager()->IsPlayerOwnerOfTheTile(pTile, pPlayer->GetUserID()))
+                    !pWorld->GetTileManager()->IsPlayerOwnerOfTheTile(pTile, pPlayer->GetUserID()))
                 {
                     pPlayer->SendOnTalkBubble("Only the block's owner can break it!", false);
                     return;
@@ -1036,11 +1059,11 @@ void TileChangeRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdatePa
             }
 
             // tile broken
-            if (!pItem->HasFlag(ITEM_FLAG_PERMANENT) && pItem->rarity != 999)
+            if (!pTileItem->HasFlag(ITEM_FLAG_PERMANENT) && pTileItem->rarity != 999)
             {
                 if (!pTile->IsTree())
                 {
-                    pPlayer->GiveXP(pItem->rarity / 5 + 1);
+                    pPlayer->GiveXP(pTileItem->rarity / 5 + 1);
                 }
 
                 pPlayer->GetProgressData().AddProgress(PLAYER_PROGRESS_BREAK_COUNT, 1);

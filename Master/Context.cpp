@@ -1,8 +1,33 @@
 #include "Context.h"
 #include "Crash/CrashReport.h"
+#include "Database/DatabaseBootstrapper.h"
+#include "Holiday/HolidayManager.h"
 #include "Server/AdminServer.h"
 #include "Server/GameServer.h"
 #include "Server/ServerManager.h"
+#include "Server/StatsManager.h"
+
+void ProcessDatabaseResults(uint64 maxTimeMS)
+{
+    DatabasePool* pDatabasePool = GetContext()->GetDatabasePool();
+    if (!pDatabasePool)
+        return;
+
+    Timer startTime;
+    QueryTaskResult taskRes;
+
+    while (pDatabasePool->GetResult(taskRes))
+    {
+        if (taskRes.callback)
+        {
+            taskRes.callback(std::move(taskRes));
+            taskRes.Destroy();
+        }
+
+        if (startTime.GetElapsedTime() >= maxTimeMS)
+            break;
+    }
+}
 
 Context::Context() : m_pDbPool(nullptr), m_pGameConfig(nullptr) {}
 
@@ -31,6 +56,42 @@ void Context::Kill()
 
     SAFE_DELETE(m_pDbPool);
     SAFE_DELETE(m_pGameConfig);
+}
+
+bool Context::LoadDatabaseModules()
+{
+    DatabaseBootstrapper bootstrapper;
+    bootstrapper
+        .AddTask(
+            "StatsManager", [](DatabasePool* db) { GetStatsManager()->LoadFromDatabase(db); },
+            []() { return GetStatsManager()->IsLoaded(); })
+
+        .AddTask(
+            "HolidayManager", [](DatabasePool* db) { GetHolidayManager()->LoadFromDatabase(db); },
+            []() { return GetHolidayManager()->IsLoaded(); });
+
+    if (!bootstrapper.Execute(GetContext()->GetDatabasePool(), ProcessDatabaseResults, GetShutdownFlag(), 15000))
+    {
+        LOGGER_LOG_ERROR_FLUSH("Critical DB boot failed or server shutdown requested. Terminating Master...");
+        GetContext()->Kill();
+        return false;
+    }
+
+    return true;
+}
+
+void Context::SetupNetBurstFromConfig()
+{
+    if (!m_pGameConfig)
+        return;
+
+    gNetBurstConfig.threshold.heavyQueueSize = m_pGameConfig->netThreshold.heavyQueueSize;
+    gNetBurstConfig.threshold.panicQueueSize = m_pGameConfig->netThreshold.panicQueueSize;
+    gNetBurstConfig.threshold.heavyCpuPermille = m_pGameConfig->netThreshold.heavyCpuPermille;
+    gNetBurstConfig.threshold.panicCpuPermille = m_pGameConfig->netThreshold.panicBurst;
+    gNetBurstConfig.normalBurst = m_pGameConfig->netThreshold.normalBurst;
+    gNetBurstConfig.heavyBurst = m_pGameConfig->netThreshold.heavyBurst;
+    gNetBurstConfig.panicBurst = m_pGameConfig->netThreshold.panicBurst;
 }
 
 Context* GetContext()

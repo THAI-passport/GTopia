@@ -25,6 +25,7 @@ public:
     string authKey = "";
     bool authed = false;
     bool deleteFlag = false;
+    bool ready = false;
 };
 
 class ServerManager : public ServerBroadwayBase
@@ -69,21 +70,25 @@ public:
     void SendRenderRequest(ServerInfo* pServer, uint32 playerUserID, uint32 worldID);
     void SendHeartBeat(ServerInfo* pServer, uint32 totalPlayer);
     void SendCommandSetRole(ServerInfo* pServer, uint32 userID, uint32 roleID);
+    void SendCommandGivePlayMod(ServerInfo* pServer, uint64 reqID, uint32 userID, int32 playModType, uint32 durationMin,
+                                int32 punishType, uint32 adminUserID, bool isSilent, const string& reason);
     void SendPlayerSessionCheck(ServerInfo* pServer, bool hasSession, int32 playerNetID, uint32 worldInstanceID);
     void SendHelloPacket(ServerInfo* pServer, const string& authKey);
 
-    void SendPlayerPresenceSnapshot(ServerInfo* pServer, const std::vector<PlayerPresencePacketElement>& elements);
-    void SendPlayerPresenceUpdate(ServerInfo* pServer, const std::vector<PlayerPresencePacketElement>& elements);
-    void SendWorldPresenceSnapshot(ServerInfo* pServer, const std::vector<WorldPresenceSnapshotElement>& elements);
-    void SendWorldPresenceSnapshotToAll(const WorldPresenceSnapshotElement& snapshotInfo);
-    void SendWorldPresenceUpdateToAll(const std::vector<WorldPresenceUpdateElement>& elements);
-    void SendWorldPresenceRemoveToAll(const std::vector<WorldPresenceRemoveElement>& elements);
+    void SendPlayerPresenceSnapshot(ServerInfo*, const std::vector<PlayerPresencePacketElement>&);
+    void SendPlayerPresenceUpdate(ServerInfo*, const std::vector<PlayerPresencePacketElement>&);
+    void SendWorldPresenceSnapshot(ServerInfo*, const std::vector<WorldPresenceSnapshotElement>&);
+    void SendWorldPresenceSnapshotToAll(const WorldPresenceSnapshotElement&);
+    void SendWorldPresenceUpdateToAll(const std::vector<WorldPresenceUpdateElement>&);
+    void SendWorldPresenceRemoveToAll(const std::vector<WorldPresenceRemoveElement>&);
+
+    void SendReloadFilePacketToAll(const string& fileType);
+    void SendCommandLua(ServerInfo* pServer, uint64 reqID, uint8 action, const string& arg, uint32 number);
 
     void SendPacketToAll(TCPPacketWriter& packet);
     void SendCommandBroadcastMessageToAll(const string& message, const string& worldName, const string& audio);
 
-    void ShutdownAllServers();
-    bool IsShutdownPending() const { return m_shutdownPending; }
+    void ShutdownAllServers(int32 timeSec = 0);
 
 private:
     template <void (*Function)(NetClient*, TCPPacketHeader&, TCPPacketReader&)>
@@ -119,6 +124,26 @@ private:
         }
     }
 
+    template <typename T> void BroadcastPresence(uint16 packetID, const std::vector<T>& elems)
+    {
+        if (elems.empty())
+            return;
+
+        TCPPacketWriter writer(packetID);
+        WritePresenceElements(writer, elems);
+        SendPacketToAll(writer);
+    }
+
+    template <typename T> void SendPresence(ServerInfo* pServer, uint16 packetID, const std::vector<T>& elems)
+    {
+        if (!pServer || !pServer->pClient || elems.empty())
+            return;
+
+        TCPPacketWriter writer(packetID);
+        WritePresenceElements(writer, elems);
+        pServer->pClient->Send(writer);
+    }
+
 private:
     Timer m_lastServerUpdateTime;
     Timer m_lastHeartBeatTime;
@@ -127,7 +152,7 @@ private:
     std::unordered_map<uint32, ServerInfo*> m_pendingClients;
     std::unordered_map<uint16, ServerInfo*> m_servers;
 
-    bool m_shutdownPending;
+    int32 m_shutdownTimeSec;
     Timer m_shutdownTimer;
 
     EventDispatcher<uint16, NetClient*, TCPPacketHeader&, TCPPacketReader&> m_events;

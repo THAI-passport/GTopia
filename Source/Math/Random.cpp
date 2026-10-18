@@ -15,7 +15,7 @@ void RandomizeRandomSeed()
     RandomNext();
 }
 
-uint32 rotr32(uint32 x, uint32 r)
+static uint32 rotr32(uint32 x, uint32 r)
 {
     return (x >> r) | (x << (-r & 31));
 }
@@ -24,10 +24,10 @@ uint32 RandomNext()
 {
     uint64 x = sRandState;
     unsigned count = (unsigned)(x >> 59);
-    
+
     sRandState = x * 6322133225846793005u + sRandIncrement;
     x ^= x >> 18;
-    
+
     return rotr32((uint32)(x >> 27), count);
 }
 

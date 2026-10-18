@@ -1,0 +1,9 @@
+set_default_color|`o
+add_quick_exit|
+
+add_label_with_icon|big|`wThe GTopia Gazette``|left|18|
+#add_spacer|small|
+#add_image_button|banner|interface/large/news_banner.rttex|noflags|||
+add_spacer|small|
+
+end_dialog|gazette||OK|

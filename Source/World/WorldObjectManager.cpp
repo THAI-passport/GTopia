@@ -58,6 +58,12 @@ uint32 WorldObjectManager::GetMemEstimate()
     return sizeof(uint32) + sizeof(m_lastObjectID) + m_objects.size() * sizeof(WorldObject);
 }
 
+void WorldObjectManager::Clear()
+{
+    m_objects.clear();
+    m_lastObjectID = 0;
+}
+
 void WorldObjectManager::AddItem(int16 itemID, uint8 count, Vector2Float pos, uint8 flags)
 {
     WorldObject obj;
@@ -170,10 +176,21 @@ WorldObject* WorldObjectManager::GetObjectByID(uint32 objectID)
     for (auto& obj : m_objects)
     {
         if (obj.objectID == objectID)
-        {
             return &obj;
-        }
     }
 
     return nullptr;
+}
+
+uint32 WorldObjectManager::GetTotalCountOfObjectsByItemIDs(const std::initializer_list<int16>& itemIDs)
+{
+    uint32 count = 0;
+
+    for (auto& obj : m_objects)
+    {
+        if (std::find(itemIDs.begin(), itemIDs.end(), obj.itemID) != itemIDs.end())
+            count++;
+    }
+
+    return count;
 }

@@ -22,7 +22,9 @@ static TableQuery sPlayerQueryTable[] =
     {"SELECT ID, Name FROM Players WHERE Name = ? AND Password = UNHEX(MD5(?));", QUERY_FLAG_RETURN_RESULT},
     {"SELECT ID FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT},
     {"UPDATE Players SET RoleID = ? WHERE ID = ?;", QUERY_FLAG_NONE},
-    {"SELECT ID, Name, GuestName, RoleID, GuestID FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT}
+    {"SELECT ID, Name, GuestName, RoleID, GuestID FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"SELECT ID, PlayMods, RoleID, IP, MAC, GID, RID, SID, VID, Hash, PlatformType, GuestName, GuestID, Name FROM Players WHERE ID = ?;", QUERY_FLAG_RETURN_RESULT},
+    {"UPDATE Players SET PlayMods = ? WHERE ID = ?;", QUERY_FLAG_NONE}
 };
 // clang-format on
 
@@ -45,7 +47,9 @@ enum ePlayerDBQuery
     DB_PLAYER_GET_BY_NAME_AND_PASS,
     DB_PLAYER_EXISTS_BY_ID,
     DB_PLAYER_SET_ROLE_BY_ID,
-    DB_PLAYER_GET_OFFLINE_DATA
+    DB_PLAYER_GET_OFFLINE_DATA,
+    DB_PLAYER_GET_PLAYMOD_PUNISH_DATA,
+    DB_PLAYER_UPDATE_PLAYMODS
 };
 
 namespace PlayerDB
@@ -77,6 +81,8 @@ QueryRequest ExistByID(uint32 userID, int32 ownerID = 0);
 
 QueryRequest SetRoleByID(uint32 roleID, uint32 userID, int32 ownerID = 0);
 QueryRequest GetOfflineData(uint32 userID, int32 ownerID = 0);
+QueryRequest GetPlaymodPunishData(uint32 userID, int32 ownerID = 0);
+QueryRequest UpdatePlaymods(const string& playMods, uint32 userID, int32 ownerID = 0);
 } // namespace PlayerDB
 
 void DatabasePlayerExec(DatabasePool* pPool, QueryRequest& req, bool preapred = false, bool bulk = false);

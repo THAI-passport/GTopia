@@ -43,16 +43,17 @@ public:
     void RemoveState(ePlayerState state) { m_state &= ~state; }
     bool HasState(ePlayerState state) const { return (m_state & state) != 0; }
 
-    void SetFlags(uint32 flags) { m_flags |= flags; }
     void SetFlag(ePlayerFlags flag) { m_flags |= flag; }
+    void RemoveFlag(ePlayerFlags flag) { m_flags &= ~flag; }
     bool HasFlag(ePlayerFlags flag) const { return (m_flags & flag) != 0; }
 
     void StartLoginRequest(ParsedTextPacket<40>& packet);
     void HandleCheckSession(TCPPacketReader& reader);
     void TransferToGame();
-    void SaveToDatabase();
+    void SaveToDatabase(bool randomizeNextSave = false);
     void BuildForBulkDatabaseSave(VariantVector& outParams);
     void LogOff(bool forceDelete, bool saveToDb, bool endSession, bool sendNetworkPackets = true);
+    void LogOffWithTime(uint32 timeMS);
 
     bool HasGrowID() const { return !m_loginDetail.tankIDPass.empty(); }
     void CheckLimitsForAccountCreation(bool fromDialog, const VariantVector& extraData = VariantVector{});
@@ -121,7 +122,7 @@ public:
 
     void HandleGameDialog(TileInfo* pTile);
 
-    void ModifyInventoryItem(int32 itemID, int16 amount);
+    int32 ModifyInventoryItem(int32 itemID, int16 amount);
     void TrashItem(int32 itemID, uint16 amount);
     void DropItem(int32 itemID, uint16 amount, bool openDialog);
 
@@ -145,6 +146,9 @@ public:
 
     void OnDeath();
     void OnDeathSpike(int32 tileX = -1, int32 tileY = -1);
+
+    void OnRaceStart();
+    void OnRaceEnd();
 
     void SetGuestID(uint32 id) { m_guestID = id; }
     void OpenPaginatedDialog(std::unique_ptr<DialogPagination> newDialog);
@@ -196,5 +200,7 @@ private:
     Timer m_lastDbSaveTime;
     Timer m_logonStartTime;
     Timer m_lastDeathTime;
+    Timer m_logOffWithTimer;
+    uint64 m_raceFlagStartTime;
     uint64 m_nextDbSaveTime;
 };

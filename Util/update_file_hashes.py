@@ -15,7 +15,7 @@ def generate_file_hashes(base_folder: str, output_file: str = "filehashes.txt"):
         raise ValueError(f"{base_folder} is not a valid directory")
 
     excluded_folders = set()
-    included_ext = {".rttex", ".wav", ".ogg", ".mp3"}
+    included_ext = {".rttex", ".wav", ".ogg", ".mp3", ".xml"}
 
     with open(output_file, "w", encoding="utf-8") as output:
         for root, dirs, files in os.walk(base_folder):

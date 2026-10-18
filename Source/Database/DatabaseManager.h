@@ -36,6 +36,7 @@ public:
     bool Rollback();
 
     uint64 GetLastInsertID();
+    uint64 GetAffectedRowCount();
     string EscapeString(const string& value);
 
     void PrintError();

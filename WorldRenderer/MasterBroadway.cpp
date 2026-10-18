@@ -87,7 +87,7 @@ void MasterBroadway::SendAuthPacket(const string& authKey)
     TCPPacketWriter writer(TCP_PACKET_AUTH);
     writer.WriteString(authKey);
     writer.Write<uint32>(GetContext()->GetID());
-    writer.Write<uint8>(CONFIG_SERVER_RENDERER);
+    writer.Write<int32>(CONFIG_SERVER_RENDERER);
 
     m_pNetClient->Send(writer);
 }

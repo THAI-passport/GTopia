@@ -33,10 +33,10 @@ struct WorldBalanceConfigSchema
     uint32 id = 0;
     string worldName;
     string fileName;
+    string closeFileName;
     int32 maxInstance = 2;
     bool keepExactId = false;
-    bool alwaysCreate = false;
-    uint32 maxPlayerCount = 20;
+    string holidayKey;
 };
 
 struct NetThresholdConfigSchema
@@ -64,6 +64,7 @@ public:
 
 public:
     bool LoadConfig(const string& filePath);
+    bool LoadNews(const string& filePath);
 
     uint16 LoadServersMaster(const string& filePath);
     uint16 LoadServersClient(const string& filePath, uint16 serverID);
@@ -98,10 +99,21 @@ public:
 
     bool isWorldBalancerEnabled = false;
     std::vector<WorldBalanceConfigSchema> balancedWorlds;
-    float balanceSoftCapRatio = 0.6;
 
     uint32 maxNpcPerWorld = 20;
     NetThresholdConfigSchema netThreshold;
 
     std::vector<DiscordWebhookConfigSchema> discordWebhooks;
+    string luaScriptsPath;
+
+    std::unordered_map<string, bool> enabledHolidays;
+    uint32 fossilSpawnSeconds = 500;
+    uint32 fossilSpawnMinWorldCount = 6;
+
+    string gameNews;
+    string worldImportExportSavePath;
+    bool filterJammedWorlds = false;
+
+public:
+    bool IsHolidayEnabled(const string& key);
 };

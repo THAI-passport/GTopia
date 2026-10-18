@@ -18,6 +18,7 @@ struct WorldPresenceData
     uint32 worldID = 0;
     string name;
     uint16 playerCount = 0;
+    uint8 worldType = 0;
     bool isSignalJammed = false;
 };
 
@@ -27,6 +28,7 @@ public:
     GamePresenceManager();
     ~GamePresenceManager();
 
+public:
     static GamePresenceManager* GetInstance()
     {
         static GamePresenceManager instance;
@@ -39,12 +41,12 @@ public:
     void ReleasePresence(const std::vector<uint32>& userIDs);
 
     void OnTCPPacket(uint16 packetType, TCPPacketReader& reader);
-    void HandleSnapshot(PlayerPresencePacketElement* pElements, uint32 elementCount);
+    void HandleSnapshot(const std::vector<PlayerPresencePacketElement>& elements);
 
     void Update();
 
     bool IsSubscribedTo(uint32 userID) { return (m_presences.find(userID) != m_presences.end()); }
-    PlayerPresenceData* GetPlayerPresenceData(int32 userID);
+    PlayerPresenceData* GetPlayerPresenceData(uint32 userID);
     WorldPresenceData* GetWorldPresenceData(uint32 worldID);
 
     void UpdateLocalWorldPresence(uint32 worldID, uint16 playerCount, bool isSignalJammed);

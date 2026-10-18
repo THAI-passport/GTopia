@@ -9,9 +9,7 @@
 namespace SystemSignal
 {
 void RegisterShutdownHook(volatile sig_atomic_t* shutdownFlag);
-
 void SignalShutdownComplete();
-
 bool WaitForShutdownComplete(uint32 timeoutSeconds = 15);
 } // namespace SystemSignal
 
@@ -60,7 +58,6 @@ public:
     void Shutdown() { m_shutdownFlag = 1; }
 
     volatile sig_atomic_t* GetStopFlag() { return &m_stopFlag; }
-
     volatile sig_atomic_t* GetShutdownFlag() { return &m_shutdownFlag; }
 
     ServerRuntimeStats& GetRuntimeStats() { return m_runtimeStats; }

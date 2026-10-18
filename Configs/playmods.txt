@@ -1,7 +1,7 @@
 # add_playmod|displayItemID|name|addMessage|removeMessage|
 # set_audio|audoFile|
 # set_char_flags|flags...|
-# set_skin_color|rgba|
+# set_skin_color|r,g,b,a|
 # set_timer|timeSec|
 # set_punch_power|value| <- knockback
 # set_punch_damage|value| <- for breaking block
@@ -25,7 +25,7 @@ set_char_flags|NO_CLIP|
 
 add_playmod|156|Double Jump|You can jump in mid-air!  It's like flying, but less.|Gravity - it's the law.|
 set_char_flags|DOUBLE_JUMP|
-set_items|156|350|362|678|736|1166|3112|1206|1460|1550|1574|1672|1674|1738|1784|1824|1934|1936|1938|2254|2256|2258|
+set_items|156|350|362|678|736|818|1166|3112|1206|1460|1550|1574|1672|1674|1738|1784|1824|1934|1936|1938|2254|2256|2258|
 set_items|2260|2262|2264|6162|4184|3104|3114|3120|3134|3144|3576|3604|3762|3514|4820|4412|4428|4440|4442|
 
 add_playmod|1904|The One Ring|No one will take your precious!|I guess someone took your precious.|
@@ -42,7 +42,7 @@ add_playmod|496|Speedy|You can move faster!|You are slow again.|
 set_speed|60|
 set_items|496|1822|1940|
 
-add_playmod|3578|Carrying a Torch|"I'm attacking the darkness!|My torch went out.|
+add_playmod|3578|Carrying a Torch|I'm attacking the darkness!|My torch went out.|
 set_items|3578|
 
 add_playmod|4746|Energized Horn|You shoot lightning from your horn(s)!|Tired of tooting your own horn?|
@@ -92,6 +92,10 @@ set_timer|180|
 add_playmod|732|Ban|Reality flickers as you begin to wake up.|You are no longer banned. Now be good!|
 set_audio|gate_close.wav|
 set_char_flags|DUCT_TAPED|
+set_timer|60|
+
+add_playmod|2646|In The Spotlight|All eyes are on you!|Back to anonymity.|
+set_char_flags|SPOTLIGHT|
 
 add_playmod|2204|Geiger Counter|You are detecting radiation...|Geiger Counter removed.|
 
@@ -99,3 +103,28 @@ add_playmod|2204|Charging Geiger Counter|Your Geiger Counter is charging...|Geig
 
 add_playmod|2206|Irradiated|You are aglow with radiation!|You have recovered.|
 set_char_flags|IRRADIATED|
+
+add_playmod|408|Duct Tape|Duct tape has covered your mouth!|Duct tape removed.  OUCH!|
+set_char_flags|DUCT_TAPED|
+set_timer|60|
+set_audio|already_used.wav|
+
+add_playmod|278|Curse|You've been cursed to (the world) `4hell``!|You are no longer bound to the netherworld, you're free to go.|
+set_skin_color|128,128,128,255|
+set_char_flags|WORLD_LOCKED|
+set_audio|oracle.wav|
+
+add_playmod|3932|Precision Tool|This tool must be used with care.|Go nuts!|
+set_punch_type|29|
+set_punch_power|-300|
+set_punch_range|-1|
+set_punch_damage|-4|
+set_items|3932|3934|
+
+add_playmod|4996|Burning Hands|Your hands are quite warm.|Everything feels so much cooler!|
+set_punch_power|2|
+set_punch_type|77|
+set_items|4996|
+
+add_playmod|2992|Howlin' Mad|You are one with the pack.|Your Wolf Whistle crumbles to dust.|
+set_timer|600|

@@ -104,7 +104,7 @@ VariantVector OnSpawn(const string& spawnData)
 
 VariantVector OnRemove(int32 netID)
 {
-    return {"OnRemove", "netID|" + std::to_string(netID) + "\n"};
+    return {"OnRemove", "netID|" + ToString(netID) + "\n"};
 }
 
 VariantVector OnSetCurrentWeather(int32 weatherID)
@@ -144,9 +144,9 @@ VariantVector OnSetBux(uint32 gemCount, bool skipAnim, bool isSupporter, bool is
     VariantVector data(5);
     data[0] = "OnSetBux";
     data[1] = gemCount;
-    data[2] = skipAnim ? 1 : 0;
-    data[3] = isSupporter ? 1 : 0;
-    data[4] = Vector3Float(secondsFromMidnight, isSuperSupporter ? 1 : 0, 0);
+    data[2] = skipAnim ? (uint32)1 : (uint32)0;
+    data[3] = isSupporter ? (uint32)1 : (uint32)0;
+    data[4] = Vector3Float(secondsFromMidnight, isSuperSupporter ? 1.0f : 0.0f, 0.0f);
     return data;
 }
 
@@ -234,6 +234,16 @@ VariantVector OnPlanterActivated(uint32 itemID, uint32 tileX, uint32 tileY)
     return {"OnPlanterActivated", itemID, tileX, tileY};
 }
 
+VariantVector OnRaceStart()
+{
+    return {"OnRaceStart"};
+}
+
+VariantVector OnRaceEnd(uint32 timeMS)
+{
+    return {"OnRaceEnd", timeMS};
+}
+
 VariantVector OnStoreRequest(const string& storeData)
 {
     return {"OnStoreRequest", storeData};
@@ -246,12 +256,6 @@ VariantVector OnStorePurchaseResult(const string& resultText)
 
 VariantVector OnAddNotification(const string& image, const string& message, const string& audio, bool isTip)
 {
-    VariantVector data(5);
-    data[0] = "OnAddNotification";
-    data[1] = image;
-    data[2] = message;
-    data[3] = audio;
-    data[4] = (uint32)(isTip ? 1 : 0);
-    return data;
+    return {"OnAddNotification", image, message, audio, (uint32)(isTip ? 1 : 0)};
 }
 } // namespace VariantPacket

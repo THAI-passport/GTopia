@@ -16,7 +16,7 @@ ServerInfo::ServerInfo(NetClient* pNetClient) : NetEntity(ENTITY_TYPE_SERVER)
     pClient = pNetClient;
 }
 
-ServerManager::ServerManager() : m_shutdownPending(false) {}
+ServerManager::ServerManager() : m_shutdownTimeSec(-1) {}
 
 ServerManager::~ServerManager()
 {
@@ -79,7 +79,7 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
 
         uint16 packetID = event.header.packetID;
 
-        if (packetID != TCP_PACKET_HEARTBEAT)
+        if (packetID != TCP_PACKET_HEARTBEAT && packetID != TCP_PACKET_STATS_UPDATE)
         {
             LOGGER_LOG_DEBUG("Received TCP Packet %d (Size: %u)", packetID, event.header.bodySize);
         }
@@ -88,7 +88,7 @@ void ServerManager::UpdateTCPLogic(uint64 maxTimeMS)
         {
             if (!pServerInfo->authed)
             {
-                LOGGER_LOG_WARN("Client trying to access un-authorized packets?! CLOSING!");
+                LOGGER_LOG_WARN("Client trying to access un-authorized %d packet?! CLOSING!", packetID);
                 event.pClient->status = SOCKET_CLIENT_CLOSE;
                 continue;
             }
@@ -136,6 +136,8 @@ void ServerManager::RegisterEvents()
     RegisterEvent<TCPEvent_HeartBeat>(TCP_PACKET_HEARTBEAT);
     RegisterEvent<TCPEvent_WorldPlayerSession>(TCP_PACKET_WORLD_PLAYER_SESSION);
     RegisterEvent<TCPEvent_Command>(TCP_PACKET_COMMAND);
+    RegisterEvent<TCPEvent_StatsUpdate>(TCP_PACKET_STATS_UPDATE);
+    RegisterEvent<TCPEvent_Ready>(TCP_PACKET_READY);
 }
 
 ServerInfo* ServerManager::GetServerByID(uint16 serverID)
@@ -256,6 +258,27 @@ void ServerManager::SendCommandSetRole(ServerInfo* pServer, uint32 userID, uint3
     pServer->pClient->Send(writer);
 }
 
+void ServerManager::SendCommandGivePlayMod(ServerInfo* pServer, uint64 reqID, uint32 userID, int32 playModType,
+                                           uint32 durationMin, int32 punishType, uint32 adminUserID, bool isSilent,
+                                           const string& reason)
+{
+    if (!pServer || !pServer->pClient)
+        return;
+
+    TCPPacketWriter writer(TCP_PACKET_COMMAND);
+    writer.Write<int32>(TCP_COMMAND_GIVE_PLAYMOD);
+    writer.Write(reqID);
+    writer.Write(userID);
+    writer.Write(playModType);
+    writer.Write(durationMin);
+    writer.Write(punishType);
+    writer.Write(adminUserID);
+    writer.Write((uint8)(isSilent ? 1 : 0));
+    writer.WriteString(reason);
+
+    pServer->pClient->Send(writer);
+}
+
 void ServerManager::SendPlayerSessionCheck(ServerInfo* pServer, bool hasSession, int32 playerNetID,
                                            uint32 worldInstanceID)
 {
@@ -284,35 +307,69 @@ void ServerManager::SendHelloPacket(ServerInfo* pServer, const string& authKey)
 void ServerManager::SendPlayerPresenceSnapshot(ServerInfo* pServer,
                                                const std::vector<PlayerPresencePacketElement>& elements)
 {
-    SendArray(pServer, TCP_PACKET_PLAYER_SNAPSHOT, elements);
+    SendPresence(pServer, TCP_PACKET_PLAYER_SNAPSHOT, elements);
 }
 
 void ServerManager::SendPlayerPresenceUpdate(ServerInfo* pServer,
                                              const std::vector<PlayerPresencePacketElement>& elements)
 {
-    SendArray(pServer, TCP_PACKET_PLAYER_UPDATE, elements);
+    SendPresence(pServer, TCP_PACKET_PLAYER_UPDATE, elements);
 }
 
 void ServerManager::SendWorldPresenceSnapshot(ServerInfo* pServer,
                                               const std::vector<WorldPresenceSnapshotElement>& elements)
 {
-    SendArray(pServer, TCP_PACKET_WORLD_SNAPSHOT, elements);
+    SendPresence(pServer, TCP_PACKET_WORLD_SNAPSHOT, elements);
 }
 
 void ServerManager::SendWorldPresenceSnapshotToAll(const WorldPresenceSnapshotElement& snapshotInfo)
 {
-    std::vector<WorldPresenceSnapshotElement> vec = {snapshotInfo};
-    SendArrayToAll(TCP_PACKET_WORLD_SNAPSHOT, vec);
+    BroadcastPresence(TCP_PACKET_WORLD_SNAPSHOT, std::vector<WorldPresenceSnapshotElement>{snapshotInfo});
 }
 
 void ServerManager::SendWorldPresenceUpdateToAll(const std::vector<WorldPresenceUpdateElement>& elements)
 {
-    SendArrayToAll(TCP_PACKET_WORLD_UPDATE, elements);
+    BroadcastPresence(TCP_PACKET_WORLD_UPDATE, elements);
 }
 
 void ServerManager::SendWorldPresenceRemoveToAll(const std::vector<WorldPresenceRemoveElement>& elements)
 {
-    SendArrayToAll(TCP_PACKET_WORLD_REMOVE, elements);
+    BroadcastPresence(TCP_PACKET_WORLD_REMOVE, elements);
+}
+
+void ServerManager::SendReloadFilePacketToAll(const string& fileType)
+{
+    TCPPacketWriter writer(TCP_PACKET_RELOAD_FILE);
+    writer.WriteString(fileType);
+
+    SendPacketToAll(writer);
+}
+
+void ServerManager::SendCommandLua(ServerInfo* pServer, uint64 reqID, uint8 action, const string& arg, uint32 number)
+{
+    TCPPacketWriter writer(TCP_PACKET_COMMAND);
+    writer.Write<int32>(TCP_COMMAND_LUA);
+    writer.Write(reqID);
+    writer.Write<uint8>(action);
+    writer.WriteString(arg);
+    writer.Write(number);
+
+    if (pServer && pServer->pClient)
+    {
+        writer.Write(pServer->serverID);
+        pServer->pClient->Send(writer);
+    }
+    else if (!pServer)
+    {
+        for (auto& [_, pServerN] : m_servers)
+        {
+            if (!pServerN || !pServerN->pClient || pServerN->serverType != CONFIG_SERVER_GAME)
+                continue;
+
+            writer.Write(pServerN->serverID);
+            pServerN->pClient->Send(writer);
+        }
+    }
 }
 
 void ServerManager::SendPacketToAll(TCPPacketWriter& packet)
@@ -344,27 +401,25 @@ void ServerManager::SendCommandBroadcastMessageToAll(const string& message, cons
     SendPacketToAll(writer);
 }
 
-void ServerManager::ShutdownAllServers()
+void ServerManager::ShutdownAllServers(int32 timeSec)
 {
-    if (m_shutdownPending)
-        return;
-
-    m_shutdownPending = true;
-    m_shutdownTimer.Reset();
-
     for (auto& [serverID, pServer] : m_servers)
     {
         if (!pServer || !pServer->pClient)
             continue;
 
         TCPPacketWriter writer(TCP_PACKET_KILL_SERVER);
+        writer.Write(timeSec);
         pServer->pClient->Send(writer);
     }
 
-    if (m_servers.empty())
+    if (timeSec != -1 && m_servers.empty())
     {
         GetContext()->Shutdown();
     }
+
+    m_shutdownTimer.Reset();
+    m_shutdownTimeSec = timeSec;
 }
 
 bool ServerManager::AddServer(ServerInfo* pServer, uint16 serverID, int8 serverType)
@@ -409,11 +464,6 @@ bool ServerManager::AddServer(ServerInfo* pServer, uint16 serverID, int8 serverT
 
     m_pendingClients.erase(pServer->GetNetID());
     m_servers.insert_or_assign(pServer->serverID, pServer);
-
-    if (pServer->serverType == CONFIG_SERVER_GAME)
-    {
-        GetGamePresenceManager()->OnGameServerConnected(pServer);
-    }
     return true;
 }
 
@@ -455,10 +505,8 @@ ServerInfo* ServerManager::GetBestGameServer()
 
     for (auto& [_, pServer] : m_servers)
     {
-        if (!pServer || pServer->serverType != CONFIG_SERVER_GAME)
-        {
+        if (!pServer || pServer->serverType != CONFIG_SERVER_GAME || !pServer->ready)
             continue;
-        }
 
         float score = (float)pServer->playerCount / (float)(pServer->worldCount + 1.0f);
         if (score < bestScore)
@@ -489,9 +537,7 @@ bool ServerManager::HasAnyGameServer()
     for (auto& [_, pServer] : m_servers)
     {
         if (!pServer || pServer->serverType != CONFIG_SERVER_GAME)
-        {
             continue;
-        }
 
         return true;
     }
@@ -518,15 +564,6 @@ uint32 ServerManager::GetPlayerCount()
 
 void ServerManager::UpdateServers()
 {
-    if (m_shutdownPending)
-    {
-        if (m_servers.empty() || m_shutdownTimer.GetElapsedTime() >= 3000)
-        {
-            GetContext()->Shutdown();
-            return;
-        }
-    }
-
     if (m_lastServerUpdateTime.GetElapsedTime() < 1000)
         return;
 
@@ -602,6 +639,15 @@ void ServerManager::UpdateServers()
     }
 
     m_lastServerUpdateTime.Reset();
+
+    if (m_shutdownTimeSec != -1)
+    {
+        if (m_shutdownTimeSec == 0 || m_shutdownTimer.GetElapsedTime() >= ((m_shutdownTimeSec + 5) * 1000))
+        {
+            GetContext()->Shutdown();
+            return;
+        }
+    }
 }
 
 ServerManager* GetServerManager()

@@ -1,15 +1,17 @@
 #pragma once
 
-#include "../Precompiled.h" 
+#include "../Precompiled.h"
 #include "Role.h"
 
-class RoleManager {
+class RoleManager
+{
 public:
     RoleManager();
     ~RoleManager();
 
 public:
-    static RoleManager* GetInstance() {
+    static RoleManager* GetInstance()
+    {
         static RoleManager instance;
         return &instance;
     }
@@ -20,11 +22,13 @@ public:
 
     void Kill();
 
+    const std::unordered_map<int32, Role*>& GetRoles() const { return m_roles; }
+
     Role* GetRole(int32 id);
     int32 GetDefaultRoleID() const { return m_defaultRoleID; }
 
 private:
-    std::unordered_map<int32, Role*> m_roles;  
+    std::unordered_map<int32, Role*> m_roles;
     int32 m_defaultRoleID;
 };
 

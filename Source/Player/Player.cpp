@@ -224,6 +224,16 @@ void Player::SendOnKilled()
     SendCallFunctionPacket(GetNetID(), VariantPacket::OnKilled(), GetNetID());
 }
 
+void Player::SendOnRaceStart()
+{
+    SendCallFunctionPacket(GetNetID(), VariantPacket::OnRaceStart());
+}
+
+void Player::SendOnRaceEnd(uint32 timeMS)
+{
+    SendCallFunctionPacket(GetNetID(), VariantPacket::OnRaceEnd(timeMS));
+}
+
 void Player::SendFakePingReply()
 {
     GameUpdatePacket packet;
@@ -234,7 +244,16 @@ void Player::SendFakePingReply()
 
 void Player::PlaySFX(const string& fileName, int32 delay)
 {
+    if (fileName.empty())
+        return;
+
     string packet = "action|play_sfx\nfile|audio/" + fileName + "\ndelayMS|" + ToString(delay) + "\n";
+    SendUDPPacket(GetNetID(), NET_MESSAGE_GAME_MESSAGE, packet.c_str(), packet.size());
+}
+
+void Player::PlayMusic(const string& fileName, int32 delay)
+{
+    string packet = "action|play_music\nfile|audio/" + fileName + "\ndelayMS|" + ToString(delay) + "\n";
     SendUDPPacket(GetNetID(), NET_MESSAGE_GAME_MESSAGE, packet.c_str(), packet.size());
 }
 
@@ -243,7 +262,7 @@ void Player::SetAddress(const char* address)
     if (!address)
         return;
 
-    std::strncpy(m_address, address, sizeof(m_address) - 1);
+    strncpy(m_address, address, sizeof(m_address) - 1);
     m_address[sizeof(m_address) - 1] = '\0';
 }
 
@@ -334,11 +353,11 @@ void Player::SendOnSetClothing(Player* pPlayer)
 
     VariantVector data(6);
     data[0] = "OnSetClothing";
-    data[1] = Vector3Float(ToItemClientID(clothes[BODY_PART_HAIR]), ToItemClientID(clothes[BODY_PART_SHIRT]),
+    data[1] = Vector3Float(ToItemClientID(clothes[BODY_PART_HAT]), ToItemClientID(clothes[BODY_PART_SHIRT]),
                            ToItemClientID(clothes[BODY_PART_PANT]));
     data[2] = Vector3Float(ToItemClientID(clothes[BODY_PART_SHOE]), ToItemClientID(clothes[BODY_PART_FACEITEM]),
                            ToItemClientID(clothes[BODY_PART_HAND]));
-    data[3] = Vector3Float(ToItemClientID(clothes[BODY_PART_BACK]), ToItemClientID(clothes[BODY_PART_HAT]),
+    data[3] = Vector3Float(ToItemClientID(clothes[BODY_PART_BACK]), ToItemClientID(clothes[BODY_PART_HAIR]),
                            ToItemClientID(clothes[BODY_PART_CHESTITEM]));
 
     data[4] = pPlayer ? (int32)pPlayer->GetCharData().GetSkinColor() : (int32)m_characterData.GetSkinColor();
@@ -355,7 +374,7 @@ void Player::SendOnSetClothing(Player* pPlayer)
     }
     else
     {
-        float artifact = 0;
+        float artifact = ToItemClientID(clothes[BODY_PART_ARTIFACT]);
         data[5] = Vector3Float(artifact, isInvis ? 1.0 : 0.0, 0);
     }
 

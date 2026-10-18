@@ -415,7 +415,8 @@ def generate_item_txt_from_dat(serialize_until: int = 0, file_path: str = "items
                 inc += 1
                 continue
 
-            elif p_item.type == 20:
+            # cloth and artifact
+            elif p_item.type == 20 or p_item.type == 107:
                 item_str += "add_cloth|"
                 item_str += f"{p_item.id}|{p_item.name}|"
                 item_str += f"{ItemMaterialToStr(p_item.material)}|"
@@ -423,7 +424,8 @@ def generate_item_txt_from_dat(serialize_until: int = 0, file_path: str = "items
                 item_str += f"{p_item.texture_x}|{p_item.texture_y}|"
                 item_str += f"{ItemVisualEffectToStr(p_item.visual_effect)}|"
                 item_str += f"{ItemStorageTypeToStr(p_item.storage)}|"
-                item_str += f"{ItemBodyPartToStr(p_item.body_part)}|\n"
+                item_str += f"{ItemBodyPartToStr(p_item.body_part)}|"
+                item_str += f"{ItemTypeToStr(p_item.type)}|\n"
 
             elif p_item.type == 19:
                 item_str += (

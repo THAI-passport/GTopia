@@ -67,6 +67,7 @@ struct QueryTaskResult
     VariantVector extraData;
     eQueryStatus status;
     uint64 increment = 0;
+    uint64 affectedRowCount = 0;
     DatabaseResult* result = nullptr;
     int32 queryID = -1;
 

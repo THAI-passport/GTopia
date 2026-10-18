@@ -3,6 +3,8 @@
 #include "../Precompiled.h"
 #include <blend2d/blend2d.h>
 
+class Texture;
+
 class ResourceManager
 {
 public:
@@ -21,11 +23,14 @@ public:
 
     BLImage* LoadTileSheet(const string& path);
     BLImage* IsTileSheetExists(const string& path);
-    BLImage* GetItemTileSheet(int32 itemID);
     BLImage* GetTileSheet(const string& tileSheet);
+
+    Texture* GetTexture(const string& path, int32 frameW = 0, int32 frameH = 0);
+    Texture* GetItemTexture(int32 itemID);
 
     BLFont* LoadFont(uint16 fontID, const string& path);
     BLFont* GetFont(uint16 fontID);
+    BLImage* DecodeRTTex(uint8* pData, uint32 size);
 
     void Kill();
 
@@ -35,8 +40,9 @@ private:
 private:
     string m_path;
     std::unordered_map<string, BLImage*> m_tileSheets;
-    std::unordered_map<uint16, BLImage*> m_itemTileSheets;
-    std::unordered_map<uint16, BLFont*> m_fonts;
+    std::unordered_map<string, Texture*> m_textures;
+    std::unordered_map<int32, Texture*> m_itemTextures;
+    std::unordered_map<int32, BLFont*> m_fonts;
 };
 
 ResourceManager* GetResourceManager();

@@ -6,11 +6,11 @@
 
 class TCPPacketReader;
 class NetClient;
-class ServerInfo;
+struct ServerInfo;
 
 struct PlayerPresenceData
 {
-    uint32 userID;
+    uint32 userID = 0;
     uint8 online = 0;
 };
 
@@ -37,7 +37,7 @@ public:
     void OnTCPPacket(NetClient* pClient, uint16 packetType, TCPPacketReader& reader);
 
     void OnPlayerStatusChanged(uint32 userID, bool loggedOn);
-    void OnWorldCreated(uint32 worldID, const string& name, uint16 serverID);
+    void OnWorldCreated(uint32 worldID, const string& name, uint16 serverID, uint8 worldType = 0);
 
     void OnGameServerDisconnect(uint16 serverID);
     void OnGameServerConnected(ServerInfo* pServer);
@@ -47,6 +47,8 @@ public:
 private:
     void PlayerSubscribe(uint16 serverID, const std::vector<uint32>& userIDs);
     void PlayerUnSubscribe(uint16 serverID, const std::vector<uint32>& userIDs);
+
+    PlayerPresencePacketElement BuildPlayerElement(uint32 userID);
 
 private:
     std::unordered_map<uint32, std::unordered_set<uint16>> m_playerSubs;

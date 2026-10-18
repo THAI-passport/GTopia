@@ -226,6 +226,14 @@ DialogBuilder& DialogBuilder::AddButtonWithIcon(const string& buttonID, const st
     return *this;
 }
 
+DialogBuilder& DialogBuilder::AddLabelWithEleIcon(const string& label, int32 itemID, int32 elementType, bool big)
+{
+    m_str += "add_label_with_ele_icon|";
+    m_str += (big ? "big|" : "small|");
+    m_str += label + "|left|" + ToString(ToItemClientID(itemID)) + "|" + ToString(elementType) + "|\n";
+    return *this;
+}
+
 DialogBuilder& DialogBuilder::EmbedData(const string& name, const string& value)
 {
     m_str += "embed_data|" + name + "|" + value + "\n";

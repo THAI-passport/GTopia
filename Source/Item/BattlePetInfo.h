@@ -10,13 +10,13 @@ enum eBattlePetAbility
     PET_ABILITY_REVIVE
 };
 
-string GetFullBattlePetName(int32 basePet, int32 pet2, int32 pet3);
+inline string GetFullBattlePetName(int32 basePet, int32 pet2, int32 pet3)
+{
+    return "";
+}
 
-class BattlePetInfo {
-public:
-    BattlePetInfo();
-    ~BattlePetInfo();
-
+class BattlePetInfo
+{
 public:
     int32 itemID = 0;
     string name;
@@ -37,7 +37,49 @@ public:
     string description;
 
 public:
-    string GetColorCodeByElement();
-    string GetElementName();
-    string GetDescribedPower();
+    string GetColorCodeByElement()
+    {
+        switch (element)
+        {
+            case ITEM_ELEMENT_EARTH:
+                return "`2";
+
+            case ITEM_ELEMENT_FIRE:
+                return "`4";
+
+            case ITEM_ELEMENT_AIR:
+                return "`9";
+
+            case ITEM_ELEMENT_WATER:
+                return "`1";
+
+            default:
+                return "";
+        }
+    }
+
+    string GetElementName()
+    {
+        switch (element)
+        {
+            case ITEM_ELEMENT_EARTH:
+                return "Earth";
+
+            case ITEM_ELEMENT_FIRE:
+                return "Fire";
+
+            case ITEM_ELEMENT_AIR:
+                return "Air";
+
+            case ITEM_ELEMENT_WATER:
+                return "Water";
+
+            default:
+                return "";
+        }
+    }
+
+    string GetDescribedPower() { return ""; }
+
+    string GetFullBattlePetName(int32 basePet, int32 pet2, int32 pet3) { return ""; }
 };

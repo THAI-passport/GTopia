@@ -55,7 +55,7 @@ void TileActivateRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdate
 
         if (targetWorld[0].empty())
         {
-            targetWorld[0] = pWorld->GetWorlName();
+            targetWorld[0] = pWorld->GetWorldName();
         }
         else
         {
@@ -84,5 +84,44 @@ void TileActivateRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdate
         pPlayer->SetTargetJoinWorld(targetWorld[0], targetDoorID);
 
         return;
+    }
+
+    PlayerInventory& inventory = pPlayer->GetInventory();
+
+    switch (pItem->id)
+    {
+        case ITEM_ID_GREAT_LEGENDARY_ORB:
+        {
+            if (inventory.GetCountOfItem(ITEM_ID_LEGENDARY_ORB) == 0)
+            {
+                if (pPlayer->ModifyInventoryItem(ITEM_ID_LEGENDARY_ORB, 1) == 0)
+                {
+                    pPlayer->SendOnTalkBubble("You need more room to carry a Legendary Orb.", false);
+                }
+                else
+                {
+                    pPlayer->SendOnTalkBubble("`9You have claimed a Legendary Orb!``", false);
+                    pWorld->SendParticleEffectToAll(PARTICLE_EFFECT_LEVELUP, pPlayer->GetWorldPosCenter());
+                }
+            }
+            return;
+        }
+
+        case ITEM_ID_WOLF_TOTEM:
+        {
+            return;
+        }
+
+        case ITEM_ID_RACE_START_FLAG:
+        {
+            pPlayer->OnRaceStart();
+            return;
+        }
+
+        case ITEM_ID_RACE_END_FLAG:
+        {
+            pPlayer->OnRaceEnd();
+            return;
+        }
     }
 }

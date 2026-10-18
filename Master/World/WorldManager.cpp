@@ -2,6 +2,7 @@
 #include "../Context.h"
 #include "../Player/PlayerManager.h"
 #include "../Server/GamePresenceManager.h"
+#include "../Server/GameServer.h"
 #include "../Server/ServerManager.h"
 #include "Database/Table/WorldDBTable.h"
 #include "Packet/TCPPacket.h"
@@ -17,14 +18,31 @@ void WorldManager::HandlePlayerJoinRequest(ServerInfo* pServer, TCPPacketReader&
         return;
 
     uint32 userID = 0;
+    if (!reader.Read(userID))
+        return;
+
+    if (GetGameServer()->IsUserLocked(userID))
+    {
+        FailPlayerJoin(pServer, userID, "Unable to move you to this world, please try again in a few seconds.");
+        return;
+    }
+
     string worldName;
     string doorID;
-
-    if (!reader.Read<uint32>(userID) || !reader.ReadString(worldName) || !reader.ReadString(doorID))
+    if (!reader.ReadString(worldName) || !reader.ReadString(doorID))
         return;
 
     worldName = ToUpper(worldName);
     doorID = ToUpper(doorID);
+
+    if (IsBalancerEnabled())
+    {
+        if (GetBalancedWorldID(worldName) != 0)
+        {
+            worldName = BalancedWorldName(worldName);
+            doorID = "";
+        }
+    }
 
     WorldSession* pWorld = GetWorldByName(worldName);
     if (pWorld)
@@ -145,7 +163,7 @@ void WorldManager::CreateWorldSessionAndNotice(uint32 instanceID, uint32 databas
     world.waitingPlayers.push_back(pending);
 
     m_worldSessionsByInstance.insert_or_assign(instanceID, world);
-    m_worldInstanceByName[worldName].push_back(instanceID);
+    m_worldInstanceByName[worldName] = instanceID;
 
     GetServerManager()->SendWorldInitPacket(pTargetServer, worldName, instanceID, databaseID);
 }
@@ -212,10 +230,7 @@ WorldSession* WorldManager::GetWorldByName(const string& worldName)
     if (it == m_worldInstanceByName.end())
         return nullptr;
 
-    if (it->second.empty())
-        return nullptr;
-
-    return GetWorldByInstanceID(it->second[0]);
+    return GetWorldByInstanceID(it->second);
 }
 
 WorldSession* WorldManager::GetWorldByInstanceID(uint32 instanceID)

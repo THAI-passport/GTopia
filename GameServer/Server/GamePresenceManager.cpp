@@ -15,7 +15,7 @@ void GamePresenceManager::RequestPresence(const std::vector<uint32>& userIDs, bo
 {
     std::vector<uint32> networkSubscribeList;
 
-    for (auto userID : userIDs)
+    for (uint32 userID : userIDs)
     {
         auto& data = m_presences[userID];
         data.userID = userID;
@@ -26,9 +26,14 @@ void GamePresenceManager::RequestPresence(const std::vector<uint32>& userIDs, bo
             m_pendingUnsubscribeBatch.erase(userID);
 
             if (isAsap)
+            {
+                m_pendingSubscribeBatch.erase(userID);
                 networkSubscribeList.push_back(userID);
+            }
             else
+            {
                 m_pendingSubscribeBatch.insert(userID);
+            }
         }
     }
 
@@ -41,27 +46,31 @@ void GamePresenceManager::RequestPresence(const std::vector<uint32>& userIDs, bo
 void GamePresenceManager::RequestPresenceForWorld(uint32 worldID, const std::vector<uint32>& userIDs)
 {
     auto& list = m_pendingPresenceWorlds[worldID];
-    for (auto userID : userIDs)
+    for (uint32 userID : userIDs)
+    {
         list.insert(userID);
+    }
 
     RequestPresence(userIDs, true);
 }
 
 void GamePresenceManager::ReleasePresence(const std::vector<uint32>& userIDs)
 {
-    for (auto userID : userIDs)
+    for (uint32 userID : userIDs)
     {
         auto it = m_presences.find(userID);
-        if (it != m_presences.end())
-        {
-            if (it->second.refCount > 0)
-                it->second.refCount--;
+        if (it == m_presences.end())
+            continue;
 
-            if (it->second.refCount == 0)
-            {
-                m_pendingSubscribeBatch.erase(userID);
-                m_pendingUnsubscribeBatch.insert(userID);
-            }
+        if (it->second.refCount > 0)
+        {
+            it->second.refCount--;
+        }
+
+        if (it->second.refCount == 0)
+        {
+            m_pendingSubscribeBatch.erase(userID);
+            m_pendingUnsubscribeBatch.insert(userID);
         }
     }
 }
@@ -74,7 +83,7 @@ void GamePresenceManager::OnTCPPacket(uint16 packetType, TCPPacketReader& reader
         case TCP_PACKET_PLAYER_UPDATE:
         {
             std::vector<PlayerPresencePacketElement> elements;
-            if (!reader.ReadArray(elements) || elements.empty())
+            if (!ReadPresenceElements(reader, elements) || elements.empty())
                 return;
 
             for (auto& elem : elements)
@@ -89,7 +98,7 @@ void GamePresenceManager::OnTCPPacket(uint16 packetType, TCPPacketReader& reader
 
             if (packetType == TCP_PACKET_PLAYER_SNAPSHOT)
             {
-                HandleSnapshot(elements.data(), (uint32)elements.size());
+                HandleSnapshot(elements);
             }
             break;
         }
@@ -97,7 +106,7 @@ void GamePresenceManager::OnTCPPacket(uint16 packetType, TCPPacketReader& reader
         case TCP_PACKET_WORLD_SNAPSHOT:
         {
             std::vector<WorldPresenceSnapshotElement> elements;
-            if (!reader.ReadArray(elements) || elements.empty())
+            if (!ReadPresenceElements(reader, elements) || elements.empty())
                 return;
 
             for (auto& elem : elements)
@@ -106,7 +115,8 @@ void GamePresenceManager::OnTCPPacket(uint16 packetType, TCPPacketReader& reader
                 wData.worldID = elem.worldID;
                 wData.name = elem.name;
                 wData.playerCount = elem.playerCount;
-                wData.isSignalJammed = (elem.isSignalJammed != 0);
+                wData.worldType = elem.worldType;
+                wData.isSignalJammed = elem.isSignalJammed;
             }
             break;
         }
@@ -114,7 +124,7 @@ void GamePresenceManager::OnTCPPacket(uint16 packetType, TCPPacketReader& reader
         case TCP_PACKET_WORLD_UPDATE:
         {
             std::vector<WorldPresenceUpdateElement> elements;
-            if (!reader.ReadArray(elements) || elements.empty())
+            if (!ReadPresenceElements(reader, elements) || elements.empty())
                 return;
 
             for (auto& elem : elements)
@@ -123,7 +133,7 @@ void GamePresenceManager::OnTCPPacket(uint16 packetType, TCPPacketReader& reader
                 if (it != m_worldPresences.end())
                 {
                     it->second.playerCount = elem.playerCount;
-                    it->second.isSignalJammed = (elem.isSignalJammed != 0);
+                    it->second.isSignalJammed = elem.isSignalJammed;
                 }
             }
             break;
@@ -131,19 +141,22 @@ void GamePresenceManager::OnTCPPacket(uint16 packetType, TCPPacketReader& reader
 
         case TCP_PACKET_WORLD_REMOVE:
         {
-            uint32 worldID = 0;
-            if (reader.Read<uint32>(worldID))
+            std::vector<WorldPresenceRemoveElement> elements;
+            if (!ReadPresenceElements(reader, elements))
+                return;
+
+            for (auto& elem : elements)
             {
-                m_worldPresences.erase(worldID);
+                m_worldPresences.erase(elem.worldID);
             }
             break;
         }
     }
 }
 
-void GamePresenceManager::HandleSnapshot(PlayerPresencePacketElement* pElements, uint32 elementCount)
+void GamePresenceManager::HandleSnapshot(const std::vector<PlayerPresencePacketElement>& elements)
 {
-    if (!pElements || elementCount == 0)
+    if (elements.empty())
         return;
 
     for (auto it = m_pendingPresenceWorlds.begin(); it != m_pendingPresenceWorlds.end();)
@@ -151,15 +164,15 @@ void GamePresenceManager::HandleSnapshot(PlayerPresencePacketElement* pElements,
         uint32 instanceID = it->first;
         auto& list = it->second;
 
-        for (uint32 i = 0; i < elementCount; ++i)
+        for (auto& elem : elements)
         {
-            list.erase(pElements[i].userID);
+            list.erase(elem.userID);
         }
 
         if (list.empty())
         {
-            GetWorldManager()->OnWorldPresenceReady(instanceID);
             it = m_pendingPresenceWorlds.erase(it);
+            GetWorldManager()->OnWorldPresenceReady(instanceID);
         }
         else
         {
@@ -168,33 +181,28 @@ void GamePresenceManager::HandleSnapshot(PlayerPresencePacketElement* pElements,
     }
 }
 
-PlayerPresenceData* GamePresenceManager::GetPlayerPresenceData(int32 userID)
+PlayerPresenceData* GamePresenceManager::GetPlayerPresenceData(uint32 userID)
 {
     auto it = m_presences.find(userID);
-    if (it == m_presences.end())
-        return nullptr;
-
-    return &it->second;
+    return it == m_presences.end() ? nullptr : &it->second;
 }
 
 WorldPresenceData* GamePresenceManager::GetWorldPresenceData(uint32 worldID)
 {
     auto it = m_worldPresences.find(worldID);
-    if (it == m_worldPresences.end())
-        return nullptr;
-
-    return &it->second;
+    return it == m_worldPresences.end() ? nullptr : &it->second;
 }
 
 void GamePresenceManager::UpdateLocalWorldPresence(uint32 worldID, uint16 playerCount, bool isSignalJammed)
 {
     auto& updateData = m_localWorldUpdates[worldID];
-    if (updateData.playerCount == playerCount && updateData.isSignalJammed == (isSignalJammed ? 1 : 0))
+    updateData.worldID = worldID;
+
+    if (updateData.playerCount == playerCount && updateData.isSignalJammed == isSignalJammed)
         return;
 
-    updateData.worldID = worldID;
     updateData.playerCount = playerCount;
-    updateData.isSignalJammed = isSignalJammed ? 1 : 0;
+    updateData.isSignalJammed = isSignalJammed;
 
     m_dirtyLocalWorlds.insert(worldID);
 }
@@ -237,7 +245,7 @@ WorldPresenceData* GamePresenceManager::GetRandomWorldPresenceData(int32 startIn
     if (startIndex < 0 || startIndex >= (int32)m_sortedWorldPresences.size())
         return nullptr;
 
-    int32 randomIndex = RandomRangeInt(startIndex, m_sortedWorldPresences.size() - 1);
+    int32 randomIndex = RandomRangeInt(startIndex, (int32)m_sortedWorldPresences.size() - 1);
     return &m_sortedWorldPresences[randomIndex];
 }
 
@@ -252,7 +260,9 @@ void GamePresenceManager::Update()
             {
                 auto it = m_presences.find(userID);
                 if (it != m_presences.end() && it->second.refCount > 0)
+                {
                     finalSubList.push_back(userID);
+                }
             }
 
             if (!finalSubList.empty())
@@ -300,7 +310,11 @@ void GamePresenceManager::Update()
 
         for (uint32 worldID : m_dirtyLocalWorlds)
         {
-            updates.push_back(m_localWorldUpdates[worldID]);
+            auto it = m_localWorldUpdates.find(worldID);
+            if (it != m_localWorldUpdates.end())
+            {
+                updates.push_back(it->second);
+            }
         }
 
         if (!updates.empty())

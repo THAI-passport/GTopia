@@ -2433,7 +2433,7 @@ void DoorDialog::HandlePasswordReply(GamePlayer* pPlayer, ParsedTextPacket<38>& 
 
     if (targetWorld[0].empty())
     {
-        targetWorld[0] = pWorld->GetWorlName();
+        targetWorld[0] = pWorld->GetWorldName();
     }
 
     string targetDoorID = (targetWorld.size() > 1) ? targetWorld[1] : "";
@@ -2993,6 +2993,8 @@ void ItemFinderDialog::Render(GamePlayer* pPlayer)
     uint32 start = m_page * m_pageSize;
     uint32 end = Min(start + m_pageSize, GetTotalCount());
 
+    // todo add checks for m_fileteredItemIds, here and onselect
+
     for (uint32 i = start; i < end; ++i)
     {
         db.AddButtonWithIcon(ToString(i - start), "", m_fileteredItemIds[i]);
@@ -3036,6 +3038,158 @@ void ItemFinderDialog::OnSelectElement(GamePlayer* pPlayer, uint32 absoluteIndex
     pPlayer->ModifyInventoryItem(itemID, itemCount);
     pPlayer->SendOnConsoleMessage("`oGiven: " + ToString(itemCount) + " " + pItem->name);
     pPlayer->ClosePaginatedDialog();
+}
+
+uint32 OverflowBackpackDialog::GetTotalCount() const
+{
+    if (!m_pOwner)
+        return 0;
+
+    return m_pOwner->GetInventory().GetOverflowCount();
+}
+
+void OverflowBackpackDialog::Render(GamePlayer* pPlayer)
+{
+    if (!pPlayer)
+        return;
+
+    PlayerInventory& inventory = pPlayer->GetInventory();
+
+    uint32 maxPages = GetMaxPageCount();
+    if (maxPages == 0)
+        m_page = 0;
+    else if (m_page >= maxPages)
+        m_page = maxPages - 1;
+
+    DialogBuilder db;
+    db.SetDefaultColor('o');
+    db.AddLabelWithIcon("`wExtra Backpack", ITEM_ID_FIST, true);
+
+    if (!m_status.empty())
+    {
+        db.AddTextBox(m_status);
+        m_status.clear();
+    }
+
+    db.AddSmallText("Your game version can only hold " + ToString(INVENTORY_LEGACY_MAX_ITEMS) +
+                    " items in its backpack. Items that don't fit are stored here. Pick one to swap it with an item "
+                    "from your backpack.")
+        .AddSpacer();
+
+    uint32 total = GetTotalCount();
+    if (total == 0)
+    {
+        db.AddTextBox("`oNothing stored here.");
+    }
+    else
+    {
+        uint32 start = m_page * m_pageSize;
+        uint32 end = Min(start + m_pageSize, total);
+
+        ItemInfoManager* pItemManager = GetItemInfoManager();
+
+        for (uint32 i = start; i < end; ++i)
+        {
+            InventoryItemInfo* pItem = inventory.GetOverflowItem(i);
+            if (!pItem)
+                continue;
+
+            ItemInfo* pItemInfo = pItemManager->GetItemByID(pItem->id);
+            if (!pItemInfo)
+                continue;
+
+            db.AddButtonWithIcon(ToString(i - start), "`w" + pItemInfo->name + " `o(x" + ToString(pItem->count) + ")",
+                                 pItem->id);
+        }
+
+        db.AddSpacer().AddSmallText("Page " + ToString(m_page + 1) + " / " + ToString(maxPages), true);
+
+        if (m_page > 0)
+            db.AddButton("prev", "`5< Previous");
+        if (m_page + 1 < maxPages)
+            db.AddButton("next", "`5Next >");
+    }
+
+    db.EndDialog("backpack_overflow", "", "Close");
+    pPlayer->SendOnDialogRequest(db.Get(), -1, true);
+}
+
+void OverflowBackpackDialog::OnSelectElement(GamePlayer* pPlayer, uint32 overflowIndex)
+{
+    if (!pPlayer)
+        return;
+
+    InventoryItemInfo* pItem = pPlayer->GetInventory().GetOverflowItem(overflowIndex);
+    if (!pItem)
+    {
+        Render(pPlayer);
+        return;
+    }
+
+    ItemInfo* pItemInfo = GetItemInfoManager()->GetItemByID(pItem->id);
+    if (!pItemInfo)
+        return;
+
+    uint32 page = m_page;
+
+    DialogBuilder db;
+    db.SetDefaultColor('o');
+    db.AddLabelWithIcon("`wSwap " + pItemInfo->name + " into your backpack", pItem->id, true);
+    db.AddSmallText("Choose the item from your backpack that should be moved to the extra storage. Worn items, "
+                    "your fist and quick slot items can't be moved.");
+    db.AddItemPicker("backpack_overflow_choosen", "`wChoose item", "Item to move out:");
+    db.EmbedData("backpack_overflow_hidden", ToItemClientID(pItem->id));
+    db.EmbedData("backpack_overflow_page", page);
+    db.EndDialog("backpack_overflow_swap", "Swap", "Back");
+
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void OverflowBackpackDialog::HandleSwapReturn(GamePlayer* pPlayer, ParsedTextPacket<38>& packet)
+{
+    if (!pPlayer)
+        return;
+
+    auto pChoosen = packet.Find("backpack_overflow_choosen"_hash);
+    auto pHidden = packet.Find("backpack_overflow_hidden"_hash);
+    auto pPage = packet.Find("backpack_overflow_page"_hash);
+    if (!pChoosen || !pHidden || !pPage)
+        return;
+
+    uint32 choosen = 0, hidden = 0, page = 0;
+    if (pChoosen->GetUInt(choosen) != TO_INT_SUCCESS || pHidden->GetUInt(hidden) != TO_INT_SUCCESS ||
+        pPage->GetUInt(page) != TO_INT_SUCCESS)
+        return;
+
+    ItemInfo* pVisibleItem = GetItemInfoManager()->GetItemByID(choosen);
+    ItemInfo* pHiddenItem = GetItemInfoManager()->GetItemByID(hidden);
+    if (!pVisibleItem || !pHiddenItem)
+        return;
+
+    string status;
+    eInventorySwapResult result = pPlayer->GetInventory().SwapWithOverflow(choosen, hidden, pPlayer);
+
+    switch (result)
+    {
+        case INVENTORY_SWAP_OK:
+            status = "`2Swapped `w" + pHiddenItem->name + "`2 into your backpack and moved `w" + pVisibleItem->name +
+                     "`2 to the extra storage.";
+            break;
+        case INVENTORY_SWAP_VISIBLE_PINNED:
+            status = "`4You can't move a worn, quick slot or fist item. Unequip it first.";
+            break;
+        case INVENTORY_SWAP_VISIBLE_NOT_FOUND:
+            status = "`4That item isn't in your backpack.";
+            break;
+        case INVENTORY_SWAP_HIDDEN_NOT_FOUND:
+            status = "`4That stored item is no longer available.";
+            break;
+        case INVENTORY_SWAP_NOT_LEGACY:
+            status = "`4Your game version has the big backpack, no swapping needed.";
+            break;
+    }
+
+    pPlayer->OpenPaginatedDialog(std::make_unique<OverflowBackpackDialog>(pPlayer, std::move(status), page));
 }
 
 void LockDialog::Request(GamePlayer* pPlayer, TileInfo* pTile)
@@ -3534,7 +3688,7 @@ void LockDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<38>& packet)
 
             pTarget->SendOnTalkBubble(pPlayer->GetDisplayName(true) +
                                           "`w has `4removed`w your access from a lock on world `w" +
-                                          pWorld->GetWorlName() + "`w.",
+                                          pWorld->GetWorldName() + "`w.",
                                       false);
             pTarget->PlaySFX("dialog_cancel.wav");
 
@@ -3999,13 +4153,14 @@ void MannequinDialog::RequestPutItem(GamePlayer* pPlayer, TileInfo* pTile, int32
         return;
     }
 
-    if (pItem->id == ITEM_ID_SNOWTOPIAN && (pCloth->bodyPart == BODY_PART_PANT || pCloth->bodyPart == BODY_PART_SHOE))
+    if (pItem->id == ITEM_ID_SNOWTOPIAN &&
+        (pCloth->GetBodyPart() == BODY_PART_PANT || pCloth->GetBodyPart() == BODY_PART_SHOE))
     {
         static string partNames[9] = {"Hat",    "Shirts",   "Pants", "Shoes",      "Face Items",
                                       "Gloves", "Backpack", "Hairs", "Chest Items"};
 
-        pPlayer->SendOnTalkBubble("`5[`2A " + pItem->name + " cannot wear " + partNames[pCloth->bodyPart] + "!``]``",
-                                  false);
+        pPlayer->SendOnTalkBubble(
+            "`5[`2A " + pItem->name + " cannot wear " + partNames[pCloth->GetBodyPart()] + "!``]``", false);
         return;
     }
 
@@ -4021,7 +4176,7 @@ void MannequinDialog::RequestPutItem(GamePlayer* pPlayer, TileInfo* pTile, int32
         return;
     }
 
-    int32 currentEquipped = pTileExtra->clothes[pCloth->bodyPart];
+    int32 currentEquipped = pTileExtra->clothes[pCloth->GetBodyPart()];
     if (currentEquipped == pCloth->id)
     {
         pPlayer->SendOnTalkBubble("`5[`2You giggle as you swap two identical items``]``", false);
@@ -4030,9 +4185,9 @@ void MannequinDialog::RequestPutItem(GamePlayer* pPlayer, TileInfo* pTile, int32
 
     if (fromDialog)
     {
-        pTileExtra->SetCloth(pCloth->bodyPart, pCloth->id);
+        pTileExtra->SetCloth(pCloth->GetBodyPart(), pCloth->id);
 
-        if (pCloth->bodyPart == BODY_PART_HAIR)
+        if (pCloth->GetBodyPart() == BODY_PART_HAIR)
         {
             // todo hair color
         }
@@ -4770,7 +4925,8 @@ void PopupDialog::RequestSelf(GamePlayer* pPlayer)
     }
 
     db.AddPlayerInfo(pPlayer->GetDisplayName(true), pPlayer->GetPlayerLevel(),
-                     progressData.GetProgress(PLAYER_PROGRESS_XP), pPlayer->GetPlayerNextLevelXP())
+                     progressData.GetProgress(PLAYER_PROGRESS_XP) - pPlayer->GetPlayerNextLevelXP(),
+                     pPlayer->GetPlayerNextLevelXP())
         .AddSpacer();
 
     uint8 onlineStatus = progressData.GetProgress(PLAYER_PROGRESS_ONLINE_STATUS) & 3;
@@ -4840,6 +4996,13 @@ void PopupDialog::RequestSelf(GamePlayer* pPlayer)
             db.AddButton("pets", "`wBattle Pets!``");
     }
 
+    if (inventory.IsLegacy())
+    {
+        db.AddButton("overflow_bp", "`#Extra Backpack");
+    }
+
+    db.AddSpacer();
+
     if (modController.GetActiveModCount() > 0)
     {
         db.AddTextBox("`wActive effects:``");
@@ -4847,13 +5010,13 @@ void PopupDialog::RequestSelf(GamePlayer* pPlayer)
     }
 
     db.AddSpacer();
-    db.AddTextBox("`oYou have `w" + ToString(inventory.GetInventorySize()) + "`` backpack slots.``");
+    db.AddTextBox("`oYou have `w" + ToString(inventory.GetInventoryCapacity()) + "`` backpack slots.``");
 
     Vector2Float vPlayerWorldPos = pPlayer->GetWorldPos();
     int32 posX = vPlayerWorldPos.x / 32;
     int32 posY = vPlayerWorldPos.y / 32;
 
-    string worldInfo = "`oCurrent world: `w" + pWorld->GetWorlName() + "`` (`w" + ToString(posX) + "``, `w" +
+    string worldInfo = "`oCurrent world: `w" + pWorld->GetWorldName() + "`` (`w" + ToString(posX) + "``, `w" +
                        ToString(posY) + "``) (`w" + ToString(pWorld->GetPlayerCount()) + "`` ";
     if (pWorld->GetPlayerCount() == 1)
         worldInfo += "person)";
@@ -4914,11 +5077,11 @@ void PopupDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<38>& packet)
 
             pWorld->PlaySFXForEveryone("repair.wav");
             pWorld->SendConsoleMessageToAll(pPlayer->GetDisplayName(true) + "`4 world bans`w" +
-                                            pTarget->GetDisplayName(true) + "`` from `w" + pWorld->GetWorlName() +
+                                            pTarget->GetDisplayName(true) + "`` from `w" + pWorld->GetWorldName() +
                                             "``!");
 
             pPlayer->SendOnConsoleMessage("You've banned " + pPlayer->GetDisplayName(true) + "`` from `w" +
-                                          pWorld->GetWorlName() +
+                                          pWorld->GetWorldName() +
                                           "`` for one hour.  You can also type `#/uba`` to unban him/her early.");
 
             pWorld->GetBannedPlayers().RegisterFailure(pTarget->GetAddressNum(), 1, 3600);
@@ -4957,22 +5120,24 @@ void PopupDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<38>& packet)
                 .EndDialog("acceptaccess", "Yes", "No");
 
             pPlayer->SendOnDialogRequest(db.Get());
-            return;
         }
-
-        if (clickedButton == "title_edit")
+        else if (clickedButton == "overflow_bp")
+        {
+            if (pPlayer->GetInventory().IsLegacy())
+            {
+                pPlayer->OpenPaginatedDialog(std::make_unique<OverflowBackpackDialog>(pPlayer));
+            }
+        }
+        else if (clickedButton == "title_edit")
         {
             RequestTitleEdit(pPlayer);
-            return;
         }
-
-        if (clickedButton == "billboard_edit")
+        else if (clickedButton == "billboard_edit")
         {
             if (pPlayer->HasFlag(PLAYER_FLAG_SUPER_SUPPORTER) || pPlayer->HasFlag(PLAYER_FLAG_SUPPORTER))
             {
                 RequestBillboardEdit(pPlayer);
             }
-            return;
         }
     }
 }
@@ -6229,9 +6394,9 @@ void TradeDialog::Request(GamePlayer* pPlayer, InventoryItemInfo* pInvItem)
 
     DialogBuilder db;
     db.SetDefaultColor('o')
-        .AddLabelWithIcon("`2Trade`w" + pItem->name, pItem->id, true)
+        .AddLabelWithIcon("`2Trade `w" + pItem->name, pItem->id, true)
         .AddTextBox("`2Trade how many?``")
-        .AddTextInput("count", "", "", 5)
+        .AddTextInput("count", "", ToString(pInvItem->count), 5)
         .EmbedData("itemID", ToItemClientID(pItem->id))
         .EndDialog("trade_item", "OK", "Cancel");
 
@@ -6266,6 +6431,93 @@ void TradeDialog::Handle(GamePlayer* pPlayer, ParsedTextPacket<38>& packet)
         return;
 
     pPlayer->GetTradeManager().OnTradeItem(itemID, count, false);
+}
+
+void TradeDialog::RequestDoubleAccept(GamePlayer* pPlayer)
+{
+    if (!pPlayer)
+        return;
+
+    PlayerTrade& trade = pPlayer->GetTradeManager();
+    GamePlayer* pPartner = trade.GetPartner();
+    if (!pPartner)
+        return;
+
+    pPlayer->SendOnForceTradeEnded();
+
+    DialogBuilder db;
+    db.SetDefaultColor('o')
+        .AddLabelWithIcon("`wTrade Confirmation``", ITEM_ID_DUMB_FRIEND, true)
+        .AddSpacer()
+        .AddTextBox("`4You'll give:``")
+        .AddSpacer();
+
+    trade.ListItemsInDialog(db);
+
+    db.AddSpacer().AddTextBox("`2You'll get:``").AddSpacer();
+
+    PlayerTrade& partnerTrade = pPartner->GetTradeManager();
+    partnerTrade.ListItemsInDialog(db);
+
+    db.AddSpacer().AddButton("Do The Trade!", "accept").AddButton("Cancel", "back").EndDialog("trade_confirm", "", "");
+    pPlayer->SendOnDialogRequest(db.Get());
+}
+
+void TradeDialog::HandleDoubleAccept(GamePlayer* pPlayer, ParsedTextPacket<38>& packet)
+{
+    if (!pPlayer)
+        return;
+
+    PlayerTrade& trade = pPlayer->GetTradeManager();
+    GamePlayer* pPartner = trade.GetPartner();
+    if (!pPartner)
+    {
+        pPlayer->SendOnTextOverlay("The other person left the trade!");
+        trade.KillTrade();
+        return;
+    }
+
+    World* pWorld = GetWorldManager()->GetWorldByInstanceID(pPlayer->GetCurrentWorld());
+    if (!pWorld)
+    {
+        trade.KillTrade();
+        return;
+    }
+
+    PlayerTrade& partnerTrade = pPartner->GetTradeManager();
+    if (!partnerTrade.GetPartner())
+    {
+        trade.KillTrade();
+        return;
+    }
+
+    if (!partnerTrade.IsAccepted())
+    {
+        pPlayer->SendOnTextOverlay("The other person changed their mind!");
+        trade.KillTrade();
+        return;
+    }
+
+    if (partnerTrade.GetPartner() != pPlayer)
+    {
+        pPlayer->SendOnTextOverlay("The other person is now trading with someone else!");
+        trade.KillTrade();
+        return;
+    }
+
+    string errMsg = trade.CheckTradingItemsAndGetError();
+    if (!errMsg.empty())
+    {
+        trade.EndTradeWithMessage(errMsg);
+        return;
+    }
+
+    string parnterErrMsg = partnerTrade.CheckTradingItemsAndGetError();
+    if (!errMsg.empty())
+    {
+        trade.EndTradeWithMessage(parnterErrMsg);
+        return;
+    }
 }
 
 void TrashDialog::Request(GamePlayer* pPlayer, int16 itemID)

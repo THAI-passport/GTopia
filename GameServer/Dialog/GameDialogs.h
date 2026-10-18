@@ -105,10 +105,7 @@ public:
 class ItemFinderDialog : public DialogPagination
 {
 public:
-    explicit ItemFinderDialog(std::vector<int16>&& itemIds)
-        : DialogPagination(30), m_fileteredItemIds(std::move(itemIds))
-    {
-    }
+    ItemFinderDialog(std::vector<int16>&& itemIds) : DialogPagination(30), m_fileteredItemIds(std::move(itemIds)) {}
 
     std::string_view GetDialogName() const override { return "item_finder"; }
     uint32 GetTotalCount() const override { return m_fileteredItemIds.size(); }
@@ -118,6 +115,27 @@ public:
 
 private:
     std::vector<int16> m_fileteredItemIds;
+};
+
+class OverflowBackpackDialog : public DialogPagination
+{
+public:
+    OverflowBackpackDialog(GamePlayer* pOwner, string status = "", uint32 startPage = 0)
+        : DialogPagination(30), m_pOwner(pOwner), m_status(std::move(status))
+    {
+        m_page = startPage;
+    }
+
+    void Render(GamePlayer* pPlayer) override;
+    std::string_view GetDialogName() const override { return "backpack_overflow"; }
+    void OnSelectElement(GamePlayer* pPlayer, uint32 overflowIndex) override;
+    uint32 GetTotalCount() const override;
+
+    static void HandleSwapReturn(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+
+private:
+    GamePlayer* m_pOwner;
+    string m_status;
 };
 
 class LockDialog
@@ -226,6 +244,9 @@ class TradeDialog
 public:
     static void Request(GamePlayer* pPlayer, InventoryItemInfo* pInvItem);
     static void Handle(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+
+    static void RequestDoubleAccept(GamePlayer* pPlayer);
+    static void HandleDoubleAccept(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
 };
 
 class TrashDialog

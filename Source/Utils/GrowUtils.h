@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../Precompiled.h"
 #include "../Math/Vector2.h"
+#include "../Precompiled.h"
 
-static uint32 sGemTypeVec[5] = { 1, 5, 10, 50, 100 };
+static uint32 sGemTypeVec[5] = {1, 5, 10, 50, 100};
 
 struct OuijaBoardCloth
 {
@@ -22,3 +22,7 @@ uint32 GetGemAmountByGemType(uint32 gemType);
 string GetRandomGrowNamePart();
 
 std::vector<OuijaBoardCloth> GetOuijaBoardCloth(bool isDarkSpiritBoard);
+
+class Role;
+string GetPlayerRawName(const string& tankIDName, const string& guestName, int32 guestID);
+string GetPlayerDisplayName(const string& rawName, int32 roleID, bool isDoctor, bool isWorldOwner, bool isWorldAdmin);

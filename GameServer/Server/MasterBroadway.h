@@ -41,6 +41,10 @@ public:
     void SendWorldPresenceRemove(const std::vector<WorldPresenceRemoveElement>& removeElems);
     void SendWorldPresenceUpdate(const std::vector<WorldPresenceUpdateElement>& updateElems);
     void SendCommandBroadcastMessage(const string& message, const string& worldName, const string& audio);
+    void SendCommandGenericResponse(uint64 reqID, bool succeed, const string& msg);
+    void SendCommandExecuteText(uint32 userID, const string& cmd);
+    void SendPacketRaw(TCPPacketWriter& writer);
+    void SendReadyPacket();
 
     bool IsConnected() { return m_pNetClient != nullptr; }
     bool Connect(const string& host, uint16 port, uint8 retryCount,
@@ -65,6 +69,16 @@ private:
 
         TCPPacketWriter writer((uint16)packetType, (elements.size() * sizeof(T)) + sizeof(uint32));
         writer.WriteArray(elements);
+        m_pNetClient->Send(writer);
+    }
+
+    template <typename T> void SendPresenceArray(uint16 packetID, const std::vector<T>& elems)
+    {
+        if (!m_pNetClient || elems.empty())
+            return;
+
+        TCPPacketWriter writer(packetID);
+        WritePresenceElements(writer, elems);
         m_pNetClient->Send(writer);
     }
 

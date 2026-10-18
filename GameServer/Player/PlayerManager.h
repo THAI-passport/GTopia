@@ -12,7 +12,8 @@ struct PlayerOnlineData
     uint16 refCount = 0;
 };
 
-class PlayerManager {
+class PlayerManager
+{
 public:
     PlayerManager();
     ~PlayerManager();
@@ -25,7 +26,6 @@ public:
     }
 
 public:
-
     GamePlayer* IsPlayerAlreadyOn(GamePlayer* pNewPlayer);
     GamePlayer* GetPlayerByNetID(uint32 netID);
     GamePlayer* GetPlayerByUserID(uint32 userID);
@@ -41,6 +41,7 @@ public:
     void SaveAllToDatabase();
 
     void BroadcastMessage(const string& message, const string& worldName = "", const string& audio = "");
+    void BroadcastMusic(const string& fileName, int32 delay = -1);
 
 private:
     std::unordered_map<uint32, GamePlayer*> m_gamePlayers;

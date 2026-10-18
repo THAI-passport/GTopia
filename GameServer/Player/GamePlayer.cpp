@@ -1,9 +1,11 @@
 #include "GamePlayer.h"
 #include "../Context.h"
 #include "../Dialog/GameDialogs.h"
+#include "../Lua/LuaHooks.h"
 #include "../Server/MasterBroadway.h"
 #include "../World/WorldManager.h"
 #include "Database/Table/PlayerDBTable.h"
+#include "Holiday/HolidayManager.h"
 #include "IO/Log.h"
 #include "Item/ItemInfoManager.h"
 #include "Math/Math.h"
@@ -23,6 +25,7 @@ GamePlayer::GamePlayer()
       m_lockAccessOwnerID(-1), m_tradeMgr(this), m_extraData(this), m_worldVersion(0)
 {
     RandomizeNextDBSaveTime();
+    m_lastTileChangeTime.Set(0);
 }
 
 GamePlayer::~GamePlayer()
@@ -73,6 +76,11 @@ void GamePlayer::Update()
             m_targetJoinWorld = "";
             m_loginDetail.doorID = "";
         }
+    }
+
+    if (m_logOffWithTimer.IsPassed())
+    {
+        LogOff(true, true, true);
     }
 }
 
@@ -138,12 +146,15 @@ void GamePlayer::TransferToGame()
     settings += "|usingStoreNavigation=1";
     settings += "|enableInventoryTab=1";
 
+    // item fav proto 193
+    settings += "|bigBackpack=1"; // do not change it else item versioning not gonna work
+
     auto itemData = GetItemInfoManager()->GetClientData(m_loginDetail.platformType, m_loginDetail.gameVersion);
     if (!itemData)
     {
         SendLogonFailWithLog("`4Oops`o, something went wrong please re-login.");
-        LOGGER_LOG_ERROR("Failed to get client data platform: %d, gameversion: %f", m_loginDetail.platformType,
-                         m_loginDetail.gameVersion);
+        LOGGER_LOG_ERROR("Failed to get item data for player %d, platform: %d, gameversion: %.2f", m_userID,
+                         m_loginDetail.platformType, m_loginDetail.gameVersion);
         return;
     }
 
@@ -156,25 +167,21 @@ void GamePlayer::TransferToGame()
     SendWelcomePacket(itemData->hash, pGameConfig->cdnServer, pGameConfig->cdnPath, settings, 0);
 }
 
-void GamePlayer::SaveToDatabase()
+void GamePlayer::SaveToDatabase(bool randomizeNextSave)
 {
     if (!GetContext()->GetDatabasePool()->GetWorker(0)->IsConnected())
         return;
 
-    uint32 invMemSize = m_inventory.GetMemEstimate(true);
-    MemoryBuffer invMemBuffer(invMemSize);
+    MemoryBuffer invMemBuffer(m_inventory.GetMemEstimate(true));
     m_inventory.Serialize(invMemBuffer, true, true);
 
-    uint32 progressMemSize = m_progressData.GetMemEstimate();
-    MemoryBuffer progressMemBuffer(progressMemSize);
+    MemoryBuffer progressMemBuffer(m_progressData.GetMemEstimate());
     m_progressData.Serialize(progressMemBuffer, true);
 
-    uint32 extraMemSize = m_extraData.GetMemEstimate();
-    MemoryBuffer extraMemBuffer(extraMemSize);
+    MemoryBuffer extraMemBuffer(m_extraData.GetMemEstimate());
     m_extraData.Serialize(extraMemBuffer, true);
 
-    uint32 playModMemSize = m_modController.GetMemEstimate();
-    MemoryBuffer playModMemBuffer(playModMemSize);
+    MemoryBuffer playModMemBuffer(m_modController.GetMemEstimate());
     m_modController.Serialize(playModMemBuffer, true);
 
     uint32 worldID = 0;
@@ -200,6 +207,9 @@ void GamePlayer::SaveToDatabase()
                        string((char*)playModMemBuffer.GetData(), playModMemBuffer.GetOffset()), GetNetID());
 
     DatabasePlayerExec(GetContext()->GetDatabasePool(), req);
+
+    if (randomizeNextSave)
+        RandomizeNextDBSaveTime();
 }
 
 void GamePlayer::BuildForBulkDatabaseSave(VariantVector& outParams)
@@ -307,6 +317,11 @@ void GamePlayer::LogOff(bool forceDelete, bool saveToDb, bool endSession, bool s
     }
 }
 
+void GamePlayer::LogOffWithTime(uint32 timeMS)
+{
+    m_logOffWithTimer.Set(timeMS);
+}
+
 void GamePlayer::CheckLimitsForAccountCreation(bool fromDialog, const VariantVector& extraData)
 {
     QueryRequest req;
@@ -405,12 +420,12 @@ void GamePlayer::OnEnterGameCB(QueryTaskResult&& result)
         pPlayer->GetCharData().SetSkinColor(skinColor);
     }
 
-    pPlayer->SetFlags(result.result->GetField("Flags", 0).GetINT());
+    pPlayer->SetFlag((ePlayerFlags)result.result->GetField("Flags", 0).GetINT());
     pPlayer->SetGems(result.result->GetField("Gems", 0).GetINT());
 
     PlayerInventory& inventory = pPlayer->GetInventory();
 
-    inventory.SetVersion(pPlayer->GetLoginDetail().protocol);
+    inventory.SetVersion(loginDetail.protocol);
     string dbInv = result.result->GetField("Inventory", 0).GetString();
 
     if (!dbInv.empty())
@@ -452,20 +467,6 @@ void GamePlayer::OnEnterGameCB(QueryTaskResult&& result)
 
     pPlayer->SetGuestID(result.result->GetField("GuestID", 0).GetINT());
 
-    /*for(uint8 i = 0; i < BODY_PART_SIZE; ++i)
-    {
-        uint16 cloth = inventory.GetClothByPart((eBodyPart)i);
-
-        ItemInfo* pItem = GetItemInfoManager()->GetItemByID(cloth);
-        if(!pItem) {
-            continue;
-        }
-
-        if(pItem->type == ITEM_TYPE_CLOTHES && pItem->playModType != PLAYMOD_TYPE_NONE) {
-            pPlayer->AddPlayMod(pItem->playModType, true);
-        }
-    }*/
-
     if (loginDetail.loginMode == LOGON_MODE_WELCOME)
     {
         pPlayer->SendOnConsoleMessage("Welcome back, `w" + pPlayer->GetDisplayName(false) + "`o.");
@@ -491,6 +492,12 @@ void GamePlayer::OnEnterGameCB(QueryTaskResult&& result)
         pPlayer->SendOnSetFeatureEnableFlags();
     }
 
+    string holidayWelcome = GetHolidayManager()->GetHolidayWelcomeMessages();
+    if (!holidayWelcome.empty())
+    {
+        pPlayer->SendOnConsoleMessage(holidayWelcome);
+    }
+
     uint32 worldID = result.result->GetField("LastWorld", 0).GetINT();
 
     if (worldID != 0 && loginDetail.loginMode == LOGON_MODE_WELCOME)
@@ -507,7 +514,7 @@ void GamePlayer::OnEnterGameCB(QueryTaskResult&& result)
         pPlayer->RemoveState(PLAYER_STATE_ENTERING_GAME);
         pPlayer->SetState(PLAYER_STATE_IN_GAME);
 
-        pPlayer->SetTargetJoinWorld(pWorld->GetWorlName(), pPlayer->GetLoginDetail().doorID);
+        pPlayer->SetTargetJoinWorld(pWorld->GetWorldName(), pPlayer->GetLoginDetail().doorID);
         pPlayer->SetCurrentWorld(0);
     }
     else
@@ -664,8 +671,8 @@ void GamePlayer::HandleRenderWorld(int32 renderResult, TCPPacketReader& reader)
         }
         else
         {
-            SendOnConsoleMessage("`oYour world \"`#" + pWorld->GetWorlName() + "`o\" has been rendered!");
-            RenderWorldDialog::OnRendered(this, pWorld->GetWorlName());
+            SendOnConsoleMessage("`oYour world \"`#" + pWorld->GetWorldName() + "`o\" has been rendered!");
+            RenderWorldDialog::OnRendered(this, pWorld->GetWorldName());
         }
     }
     else
@@ -712,12 +719,6 @@ RectFloat GamePlayer::GetPlayerWorldRect()
 string GamePlayer::GetDisplayName(bool checkWorld)
 {
     string displayName;
-    if (m_pRole->GetNameColor() != 0)
-    {
-        displayName += "`";
-        displayName += m_pRole->GetNameColor();
-    }
-
     if (checkWorld && m_currentWorldID != 0)
     {
         if (World* pWorld = GetWorldManager()->GetWorldByInstanceID(m_currentWorldID))
@@ -727,6 +728,12 @@ string GamePlayer::GetDisplayName(bool checkWorld)
             else if (pWorld->IsPlayerWorldAdmin(this))
                 displayName += "`^";
         }
+    }
+
+    if (m_pRole->GetNameColor() != 0)
+    {
+        displayName += "`";
+        displayName += m_pRole->GetNameColor();
     }
 
     if (m_progressData.IsTitleActive(PLAYER_TITLE_DOCTOR))
@@ -740,7 +747,7 @@ string GamePlayer::GetDisplayName(bool checkWorld)
     {
         displayName += " of Legend";
     }
-    return displayName;
+    return displayName + "``";
 }
 
 string GamePlayer::GetRawName()
@@ -792,22 +799,16 @@ string GamePlayer::GetCountryData()
 void GamePlayer::ToggleCloth(int32 itemID)
 {
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
-    if (!pItem || pItem->bodyPart > BODY_PART_SIZE)
+    if (!pItem)
         return;
 
     if (pItem->type != ITEM_TYPE_CLOTHES && pItem->type != ITEM_TYPE_ARTIFACT)
         return;
 
-    if (pItem->type == ITEM_TYPE_ARTIFACT)
-        /**
-         *
-         */
-        return;
-
-    int16 wornItem = m_inventory.GetClothByPart((eBodyPart)pItem->bodyPart);
+    int16 wornItem = m_inventory.GetClothByPart(pItem->GetBodyPart());
     if (wornItem == pItem->id)
     {
-        m_inventory.SetClothByPart(ITEM_ID_BLANK, pItem->bodyPart);
+        m_inventory.SetClothByPart(ITEM_ID_BLANK, pItem->GetBodyPart());
 
         if (pItem->playModType != PLAYMOD_TYPE_NONE)
         {
@@ -847,7 +848,16 @@ void GamePlayer::ToggleCloth(int32 itemID)
     }
     else
     {
-        m_inventory.SetClothByPart(pItem->id, pItem->bodyPart);
+        if (pItem->id == ITEM_ID_NEWSPAPER)
+        {
+            GameConfig* pGameConfig = GetContext()->GetGameConfig();
+            if (!pGameConfig->gameNews.empty())
+            {
+                SendOnDialogRequest(pGameConfig->gameNews);
+            }
+        }
+
+        m_inventory.SetClothByPart(pItem->id, pItem->GetBodyPart());
 
         ItemInfo* pWornItem = GetItemInfoManager()->GetItemByID(wornItem);
         if (pWornItem && pWornItem->playModType != PLAYMOD_TYPE_NONE)
@@ -1012,13 +1022,14 @@ uint32 GamePlayer::GetPlayerLevel()
     uint32 playerXP = m_progressData.GetProgress(PLAYER_PROGRESS_XP);
     if (playerXP < 100)
         return 0;
+
     return Sqrt((playerXP / 50) - 2);
 }
 
 uint32 GamePlayer::GetPlayerNextLevelXP()
 {
     uint32 currentLevel = GetPlayerLevel();
-    return ((currentLevel) * (currentLevel) * 50) + 100;
+    return ((currentLevel * currentLevel) + 2) * 50;
 }
 
 uint32 GamePlayer::NormalizeSkinColor(uint32 skinColor)
@@ -1058,6 +1069,9 @@ void GamePlayer::HandleGameDialog(TileInfo* pTile)
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
     if (!pItem)
+        return;
+
+    if (LUA_CALLBACK_HANDLED("OnTileWrench", this, pTile))
         return;
 
     if (pItem->type == ITEM_TYPE_SIGN)
@@ -1169,29 +1183,31 @@ void GamePlayer::HandleGameDialog(TileInfo* pTile)
     }
 }
 
-void GamePlayer::ModifyInventoryItem(int32 itemID, int16 amount)
+int32 GamePlayer::ModifyInventoryItem(int32 itemID, int16 amount)
 {
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(itemID);
     if (!pItem || amount == 0)
-        return;
+        return 0;
 
     if (amount > 0 && IsIllegalItem(pItem->id) && !m_pRole->HasPerm("bypass.item_illegal"_hash))
-        return;
+        return 0;
 
     if (amount > 0 && pItem->HasFlag(ITEM_FLAG_MOD) && !m_pRole->HasPerm("bypass.item_mod"_hash))
-        return;
+        return 0;
 
     if (amount < 0)
     {
-        m_inventory.RemoveItem(pItem->id, -amount, this);
+        uint8 count = m_inventory.RemoveItem(pItem->id, -amount, this);
         if (m_inventory.GetCountOfItem(pItem->id) == 0 && m_inventory.IsWearingItem(pItem->id))
         {
             ToggleCloth(pItem->id);
         }
+
+        return -count;
     }
     else
     {
-        m_inventory.AddItem(pItem->id, amount, this);
+        return m_inventory.AddItem(pItem->id, amount, this);
     }
 }
 
@@ -1253,13 +1269,13 @@ void GamePlayer::DropItem(int32 itemID, uint16 amount, bool openDialog)
     Vector2Float random = GetRandomPlayerItemDropOffset();
 
     Vector2Float playerCenter;
-    playerCenter.x = m_worldPos.x + 20 * 0.5f;
-    playerCenter.y = m_worldPos.y + 30 * 0.5f;
+    playerCenter.x = m_worldPos.x + (20.f * 0.5f);
+    playerCenter.y = m_worldPos.y + (30.f * 0.5f);
 
     float facing = m_characterData.HasCharFlag(CHARACTER_FLAG_FACING_LEFT) ? -0.75f : 0.75f;
 
     Vector2Float dropPos;
-    dropPos.x = playerCenter.x + random.x + facing * 32.f;
+    dropPos.x = playerCenter.x + random.x + (facing * 32.f);
     dropPos.y = playerCenter.y + random.y;
 
     TileInfo* pTile = pWorld->GetTileManager()->GetTileByWorldPos(dropPos.x, dropPos.y);
@@ -1362,7 +1378,12 @@ void GamePlayer::DropItem(int32 itemID, uint16 amount, bool openDialog)
         return;
     }
 
-    pWorld->DropOrSuckObjectOnTile(pTile, pItem->id, amount, dropPos - pTile->GetWorldPosCenter(), true);
+    Vector2Float tileCenter = pTile->GetWorldPosCenter();
+    Vector2Float relativeOffset;
+    relativeOffset.x = dropPos.x - tileCenter.x;
+    relativeOffset.y = dropPos.y - tileCenter.y;
+
+    pWorld->DropOrSuckObjectOnTile(pTile, pItem->id, amount, relativeOffset, true);
 }
 
 void GamePlayer::SendLockAccessRequest(GamePlayer* pOwner, TileInfo* pLockTile)
@@ -1684,6 +1705,49 @@ void GamePlayer::OnDeathSpike(int32 tileX, int32 tileY)
     pWorld->SendPlayPositionedToAll(this, "teleport.wav");
     SendOnSetFreezeState(PLAYER_FREEZE_STATE_NONE, 2000);
     m_lastDeathTime.Reset();
+}
+
+void GamePlayer::OnRaceStart()
+{
+    if (m_raceFlagStartTime != 0)
+        return;
+
+    World* pWorld = GetWorldManager()->GetWorldByInstanceID(m_currentWorldID);
+    if (!pWorld)
+        return;
+
+    m_raceFlagStartTime = Time::GetSystemTime();
+    SendOnRaceStart();
+    pWorld->SendPlayPositionedToAll(this, "race_start.wav");
+}
+
+void GamePlayer::OnRaceEnd()
+{
+    uint64 elapsedMs = Time::GetSystemTime() - m_raceFlagStartTime;
+    m_raceFlagStartTime = 0;
+
+    if (m_raceFlagStartTime == 0)
+    {
+
+        World* pWorld = GetWorldManager()->GetWorldByInstanceID(m_currentWorldID);
+        if (!pWorld)
+            return;
+
+        pWorld->SendPlayPositionedToAll(this, "race_end.wav");
+
+        uint32 totalSec = elapsedMs / 1000;
+        uint32 timeMs = (elapsedMs / 10) % 100;
+        uint32 timeSec = totalSec % 60;
+        uint32 timeMin = totalSec / 60;
+
+        char timeBuffer[64];
+        snprintf(timeBuffer, sizeof(timeBuffer), "%02u:%02u.%02u", timeMin, timeSec, timeMs);
+        string formattedTime(timeBuffer);
+
+        pWorld->SendConsoleMessageToAll("`2" + GetDisplayName(true) + " `0finished in`` " + formattedTime + "`o!``");
+    }
+
+    SendOnRaceEnd(elapsedMs);
 }
 
 void GamePlayer::OpenPaginatedDialog(std::unique_ptr<DialogPagination> newDialog)

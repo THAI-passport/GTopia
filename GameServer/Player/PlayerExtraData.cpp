@@ -2,16 +2,18 @@
 #include "GamePlayer.h"
 #include "IO/Log.h"
 
-PlayerExtraData::PlayerExtraData(GamePlayer* pPlayer) : m_pPlayer(pPlayer) {}
+PlayerExtraData::PlayerExtraData(GamePlayer* pPlayer) : m_pPlayer(pPlayer)
+{
+    m_data.resize(PLAYER_EXTRA_COUNT);
+}
 
 PlayerExtraData::~PlayerExtraData() {}
 
 bool PlayerExtraData::Set(ePlayerExtraKey key, const Variant& data)
 {
-    if (GetExpectedTypeForKey(key) != data.GetType())
+    if (key >= PLAYER_EXTRA_COUNT)
     {
-        LOGGER_LOG_ERROR("[PlayerExtraData] Non valid type for key: %d, income: %d, expected: %d, player: %d", key,
-                         (int32)data.GetType(), (int32)GetExpectedTypeForKey(key),
+        LOGGER_LOG_ERROR("[PlayerExtraData] Out of bounds key: %d for player: %d", key,
                          (m_pPlayer ? m_pPlayer->GetUserID() : -1));
         return false;
     }
@@ -20,32 +22,58 @@ bool PlayerExtraData::Set(ePlayerExtraKey key, const Variant& data)
     return true;
 }
 
-Variant& PlayerExtraData::Get(ePlayerExtraKey key)
+const Variant& PlayerExtraData::Get(ePlayerExtraKey key) const
 {
-    auto it = m_data.find(key);
-    if (it != m_data.end())
-        return it->second;
+    if (key >= PLAYER_EXTRA_COUNT)
+    {
+        static const Variant emptyVariant;
+        return emptyVariant;
+    }
 
-    m_data.insert_or_assign(key, Variant());
     return m_data[key];
+}
+
+bool PlayerExtraData::Has(ePlayerExtraKey key) const
+{
+    if (key >= PLAYER_EXTRA_COUNT)
+        return false;
+
+    return m_data[key].GetType() != VARIANT_TYPE_NONE;
+}
+
+void PlayerExtraData::Clear(ePlayerExtraKey key)
+{
+    if (key < PLAYER_EXTRA_COUNT)
+        m_data[key] = Variant();
+}
+
+void PlayerExtraData::ClearAll()
+{
+    for (auto& var : m_data)
+        var = Variant();
 }
 
 void PlayerExtraData::Serialize(MemoryBuffer& memBuffer, bool write)
 {
-    uint16 dataCount = m_data.size();
-    memBuffer.ReadWrite(dataCount, write);
-
     if (write)
     {
-        memBuffer.Write(dataCount);
-
-        for (auto& [key, var] : m_data)
+        uint16 activeCount = 0;
+        for (auto& var : m_data)
         {
+            if (var.GetType() != VARIANT_TYPE_NONE)
+                activeCount++;
+        }
+
+        memBuffer.Write(activeCount);
+
+        for (uint16 key = 0; key < PLAYER_EXTRA_COUNT; ++key)
+        {
+            auto& var = m_data[key];
             if (var.GetType() == VARIANT_TYPE_NONE)
                 continue;
 
             memBuffer.Write(key);
-            memBuffer.Write((uint8)var.GetType());
+            memBuffer.Write((uint8)(var.GetType()));
 
             switch (var.GetType())
             {
@@ -76,34 +104,42 @@ void PlayerExtraData::Serialize(MemoryBuffer& memBuffer, bool write)
                 case VARIANT_TYPE_VECTOR3FLOAT:
                     memBuffer.Write(var.GetVector3Float());
                     break;
+                default:
+                    break;
             }
         }
     }
     else
     {
-        m_data.clear();
+        ClearAll();
+
+        uint16 dataCount = 0;
+        memBuffer.Read(dataCount);
 
         for (uint16 i = 0; i < dataCount; ++i)
         {
-            uint16 key = 0;
-            memBuffer.Read(key);
+            uint16 keyInt = 0;
+            memBuffer.Read(keyInt);
 
-            uint8 type = 0;
-            memBuffer.Read(type);
+            uint8 typeInt = 0;
+            memBuffer.Read(typeInt);
+
+            ePlayerExtraKey key = (ePlayerExtraKey)(keyInt);
+            eVariantTypes type = (eVariantTypes)(typeInt);
 
             Variant var;
             switch (type)
             {
                 case VARIANT_TYPE_STRING:
                 {
-                    string str = "";
+                    std::string str;
                     memBuffer.ReadStringRaw(str);
                     var = str;
                     break;
                 }
                 case VARIANT_TYPE_FLOAT:
                 {
-                    float val = 0;
+                    float val = 0.0f;
                     memBuffer.Read(val);
                     var = val;
                     break;
@@ -157,45 +193,30 @@ void PlayerExtraData::Serialize(MemoryBuffer& memBuffer, bool write)
                     var = val;
                     break;
                 }
+                default:
+                    break;
             }
 
-            m_data[key] = var;
+            if (key < PLAYER_EXTRA_COUNT)
+            {
+                m_data[key] = var;
+            }
         }
     }
 }
 
-uint32 PlayerExtraData::GetMemEstimate()
+uint32 PlayerExtraData::GetMemEstimate() const
 {
-    uint32 memEstimate = 2;
-    for (auto& [_, data] : m_data)
+    uint32 memEstimate = sizeof(uint16);
+    for (auto& data : m_data)
     {
         if (data.GetType() == VARIANT_TYPE_NONE)
             continue;
 
-        memEstimate += (2 + data.GetSize());
+        memEstimate += sizeof(uint16) + sizeof(uint8) + data.GetSize();
         if (data.GetType() == VARIANT_TYPE_STRING)
-            memEstimate += 2;
+            memEstimate += sizeof(uint16);
     }
 
     return memEstimate;
-}
-
-eVariantTypes PlayerExtraData::GetExpectedTypeForKey(ePlayerExtraKey key)
-{
-    switch (key)
-    {
-        case PLAYER_EXTRA_BILLBOARD_ITEM_ID:
-            return VARIANT_TYPE_INT;
-        case PLAYER_EXTRA_BILLBOARD_SHOW:
-            return VARIANT_TYPE_BOOL;
-        case PLAYER_EXTRA_BILLBOARD_PRICE:
-            return VARIANT_TYPE_INT;
-        case PLAYER_EXTRA_BILLBOARD_IS_LOCK_PER:
-            return VARIANT_TYPE_BOOL;
-        case PLAYER_EXTRA_BILLBOARD_IS_BUY:
-            return VARIANT_TYPE_BOOL;
-
-        default:
-            return VARIANT_TYPE_NONE;
-    }
 }

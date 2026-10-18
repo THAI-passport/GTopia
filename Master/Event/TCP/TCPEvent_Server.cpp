@@ -1,5 +1,9 @@
 #include "TCPEvent_Server.h"
+#include "../../Server/GamePresenceManager.h"
 #include "../../Server/ServerManager.h"
+#include "Holiday/HolidayManager.h"
+#include "Server/StatsManager.h"
+#include "TCPEvent_Server.h"
 #include "Utils/StringUtils.h"
 
 void TCPEvent_Hello(NetClient* pClient, TCPPacketHeader& header, TCPPacketReader& reader)
@@ -73,6 +77,26 @@ void TCPEvent_Auth(NetClient* pClient, TCPPacketHeader& header, TCPPacketReader&
     GetServerManager()->SendAuthPacket(pServer, true);
 }
 
+void TCPEvent_Ready(NetClient* pClient, TCPPacketHeader& header, TCPPacketReader& reader)
+{
+    if (!pClient)
+        return;
+
+    ServerInfo* pServer = (ServerInfo*)pClient->data;
+    if (!pServer)
+        return;
+
+    pServer->ready = true;
+
+    LOGGER_LOG_INFO("Received ready packet from server %d, sending sync data", pServer->serverID);
+    if (pServer->serverType == CONFIG_SERVER_GAME)
+    {
+        GetGamePresenceManager()->OnGameServerConnected(pServer);
+        GetHolidayManager()->SyncHolidayViaTCP("");
+        GetStatsManager()->SyncStatsViaTCP();
+    }
+}
+
 void TCPEvent_HeartBeat(NetClient* pClient, TCPPacketHeader& header, TCPPacketReader& reader)
 {
     if (!pClient)
@@ -104,4 +128,12 @@ void TCPEvent_KillServer(NetClient* pClient, TCPPacketHeader& header, TCPPacketR
 
     LOGGER_LOG_WARN("Killing server %d", pServer->serverID);
     GetServerManager()->RemoveServer(pServer->serverID);
+}
+
+void TCPEvent_StatsUpdate(NetClient* pClient, TCPPacketHeader& header, TCPPacketReader& reader)
+{
+    if (!pClient)
+        return;
+
+    GetStatsManager()->OnTCPPacket(reader);
 }

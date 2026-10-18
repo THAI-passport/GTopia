@@ -4,15 +4,14 @@
 #include "../Precompiled.h"
 #include "BattlePetInfo.h"
 #include "ItemInfo.h"
-#include <algorithm>
 
-#define MAX_SUPPORTED_ITEM_DATA_VERSION 26
+#define MAX_SUPPORTED_ITEM_DATA_VERSION 27
 
 // {1.20f, 1}
 
 static const std::vector<std::pair<float, uint16>> sItemDataVersionMap = {
-    {5.47f, 26}, {5.46f, 25}, {5.11f, 21}, {4.71f, 19},  {4.61f, 18}, {4.53f, 17}, {4.44f, 16}, {4.19f, 15},
-    {3.74f, 14}, {3.62f, 13}, {3.45f, 12}, {2.988f, 11}, {2.88f, 6},  {1.64f, 4},  {0.0f, 0}};
+    {5.59f, 27}, {5.47f, 26}, {5.46f, 25}, {5.11f, 21}, {4.71f, 19},  {4.61f, 18}, {4.53f, 17}, {4.44f, 16},
+    {4.19f, 15}, {3.74f, 14}, {3.62f, 13}, {3.45f, 12}, {2.988f, 11}, {2.88f, 6},  {1.64f, 4},  {0.0f, 0}};
 
 uint16 ChooseItemDataVersionForClient(float gameVersion);
 uint16 GetMinRequiredItemDataVersion(float a, float b, float c, float d);

@@ -12,6 +12,7 @@ struct AdminClientConfig
     string password = "";
     string displayName = "";
     int32 adminLevel = 0;
+    bool isDiscordBot = false;
     std::vector<string> allowedIPs;
 
     bool IsTrustedIP(const string& ip)
@@ -37,7 +38,10 @@ public:
     int32 GetAdminLevel() const { return m_adminLevel; }
 
     void SetDisplayName(const string& displayName) { m_displayName = displayName; }
-    string GetDisplayName() const { return m_displayName; }
+    const string& GetDisplayName() const { return m_displayName; }
+
+    void SetDiscordBot(bool isBot) { m_isDiscordBot = isBot; }
+    bool IsDiscordBot() const { return m_isDiscordBot; }
 
     Timer& GetLastActionTime() { return m_lastActionTime; }
     void SetAuthed(bool authed) { m_authed = authed; }
@@ -61,6 +65,7 @@ private:
     bool m_authed;
     uint8 m_passTryCount;
     bool m_isBusy;
+    bool m_isDiscordBot;
 };
 
 class AdminServer

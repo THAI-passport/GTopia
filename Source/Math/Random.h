@@ -13,7 +13,6 @@ uint32 RandomNext();
 float RandomNextFloat();
 void SetRandomSeed(uint64 seed);
 void RandomizeRandomSeed();
-uint32 rotr32(uint32 x, uint32 r);
 
 int32 RandomRangeInt(int32 min, int32 max);
 float RandomRangeFloat(float min, float max);

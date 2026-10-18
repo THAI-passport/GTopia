@@ -103,136 +103,79 @@ void DiscordWebhook::Clear()
     m_attachments.clear();
 }
 
-string DiscordWebhook::EscapeJSON(const string& str)
+JSON DiscordWebhook::BuildEmbedJSON(const DiscordEmbed& embed)
 {
-    string escaped;
-    escaped.reserve(str.size());
-    for (char c : str)
+    JSON j;
+
+    if (!embed.title.empty())
+        j["title"] = embed.title;
+    if (!embed.description.empty())
+        j["description"] = embed.description;
+    if (!embed.url.empty())
+        j["url"] = embed.url;
+    if (embed.color != 0)
+        j["color"] = embed.color;
+    if (!embed.timestamp.empty())
+        j["timestamp"] = embed.timestamp;
+
+    if (!embed.author.name.empty())
     {
-        switch (c)
+        JSON& author = j["author"];
+        author["name"] = embed.author.name;
+        if (!embed.author.url.empty())
+            author["url"] = embed.author.url;
+        if (!embed.author.iconUrl.empty())
+            author["icon_url"] = embed.author.iconUrl;
+    }
+
+    if (!embed.footerText.empty())
+    {
+        JSON& footer = j["footer"];
+        footer["text"] = embed.footerText;
+        if (!embed.footerIconUrl.empty())
+            footer["icon_url"] = embed.footerIconUrl;
+    }
+
+    if (!embed.imageUrl.empty())
+        j["image"]["url"] = embed.imageUrl;
+    if (!embed.thumbnailUrl.empty())
+        j["thumbnail"]["url"] = embed.thumbnailUrl;
+
+    if (!embed.fields.empty())
+    {
+        JSON& fields = j["fields"];
+        for (auto& field : embed.fields)
         {
-            case '\"':
-                escaped += "\\\"";
-                break;
-            case '\\':
-                escaped += "\\\\";
-                break;
-            case '\b':
-                escaped += "\\b";
-                break;
-            case '\f':
-                escaped += "\\f";
-                break;
-            case '\n':
-                escaped += "\\n";
-                break;
-            case '\r':
-                escaped += "\\r";
-                break;
-            case '\t':
-                escaped += "\\t";
-                break;
-            default:
-                if (c >= 0 && c <= 0x1f)
-                {
-                    char buf[8];
-                    snprintf(buf, sizeof(buf), "\\u%04x", (uint8)c);
-                    escaped += buf;
-                }
-                else
-                    escaped += c;
-                break;
+            JSON f;
+            f["name"] = field.name;
+            f["value"] = field.value;
+            f["inline"] = field.isInline;
+            fields.push_back(std::move(f));
         }
     }
-    return escaped;
+
+    return j;
 }
 
 string DiscordWebhook::BuildJSONPayload()
 {
-    string json = "{";
+    JSON j;
 
     if (!m_content.empty())
-        json += "\"content\":\"" + EscapeJSON(m_content) + "\",";
+        j["content"] = m_content;
     if (!m_username.empty())
-        json += "\"username\":\"" + EscapeJSON(m_username) + "\",";
+        j["username"] = m_username;
     if (!m_avatarUrl.empty())
-        json += "\"avatar_url\":\"" + EscapeJSON(m_avatarUrl) + "\",";
+        j["avatar_url"] = m_avatarUrl;
 
     if (!m_embeds.empty())
     {
-        json += "\"embeds\":[";
-        for (int32 i = 0; i < m_embeds.size(); ++i)
-        {
-            DiscordEmbed& embed = m_embeds[i];
-            json += "{";
-
-            if (!embed.title.empty())
-                json += "\"title\":\"" + EscapeJSON(embed.title) + "\",";
-            if (!embed.description.empty())
-                json += "\"description\":\"" + EscapeJSON(embed.description) + "\",";
-            if (!embed.url.empty())
-                json += "\"url\":\"" + EscapeJSON(embed.url) + "\",";
-            if (embed.color != 0)
-                json += "\"color\":" + std::to_string(embed.color) + ",";
-            if (!embed.timestamp.empty())
-                json += "\"timestamp\":\"" + EscapeJSON(embed.timestamp) + "\",";
-
-            if (!embed.author.name.empty())
-            {
-                json += "\"author\":{";
-                json += "\"name\":\"" + EscapeJSON(embed.author.name) + "\"";
-                if (!embed.author.url.empty())
-                    json += ",\"url\":\"" + EscapeJSON(embed.author.url) + "\"";
-                if (!embed.author.iconUrl.empty())
-                    json += ",\"icon_url\":\"" + EscapeJSON(embed.author.iconUrl) + "\"";
-                json += "},";
-            }
-
-            if (!embed.footerText.empty())
-            {
-                json += "\"footer\":{";
-                json += "\"text\":\"" + EscapeJSON(embed.footerText) + "\"";
-                if (!embed.footerIconUrl.empty())
-                    json += ",\"icon_url\":\"" + EscapeJSON(embed.footerIconUrl) + "\"";
-                json += "},";
-            }
-
-            if (!embed.imageUrl.empty())
-                json += "\"image\":{\"url\":\"" + EscapeJSON(embed.imageUrl) + "\"},";
-            if (!embed.thumbnailUrl.empty())
-                json += "\"thumbnail\":{\"url\":\"" + EscapeJSON(embed.thumbnailUrl) + "\"},";
-
-            if (!embed.fields.empty())
-            {
-                json += "\"fields\":[";
-                for (int32 j = 0; j < embed.fields.size(); ++j)
-                {
-                    DiscordEmbedField& field = embed.fields[j];
-                    json += "{";
-                    json += "\"name\":\"" + EscapeJSON(field.name) + "\",";
-                    json += "\"value\":\"" + EscapeJSON(field.value) + "\",";
-                    json += "\"inline\":" + string(field.isInline ? "true" : "false");
-                    json += "}";
-                    if (j + 1 < embed.fields.size())
-                        json += ",";
-                }
-                json += "],";
-            }
-
-            if (json.back() == ',')
-                json.pop_back();
-            json += "}";
-            if (i + 1 < m_embeds.size())
-                json += ",";
-        }
-        json += "],";
+        JSON& embeds = j["embeds"];
+        for (auto& embed : m_embeds)
+            embeds.push_back(BuildEmbedJSON(embed));
     }
 
-    if (json.back() == ',')
-        json.pop_back();
-    json += "}";
-
-    return json;
+    return j.Get();
 }
 
 string DiscordWebhook::BuildMultipartPayload(const string& boundary)
@@ -302,7 +245,7 @@ bool DiscordWebhook::SendContent(const string& content)
     return Send();
 }
 
-DiscordWebhookManager::DiscordWebhookManager() {}
+DiscordWebhookManager::DiscordWebhookManager() : m_pGameConfig(nullptr) {}
 
 DiscordWebhookManager::~DiscordWebhookManager()
 {
@@ -319,10 +262,12 @@ void DiscordWebhookManager::Kill()
     m_webhooks.clear();
 }
 
-void DiscordWebhookManager::RegisterFromConfig(std::vector<DiscordWebhookConfigSchema>& webhooks,
-                                               eConfigServerType serverType)
+void DiscordWebhookManager::RegisterFromConfig(eConfigServerType serverType)
 {
-    for (auto& webhook : webhooks)
+    if (!m_pGameConfig)
+        return;
+
+    for (auto& webhook : m_pGameConfig->discordWebhooks)
     {
         if (webhook.serverType != serverType)
             continue;

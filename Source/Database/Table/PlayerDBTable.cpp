@@ -176,6 +176,24 @@ QueryRequest PlayerDB::GetOfflineData(uint32 userID, int32 ownerID)
     return req;
 }
 
+QueryRequest PlayerDB::GetPlaymodPunishData(uint32 userID, int32 ownerID)
+{
+    QueryRequest req(ownerID);
+    req.AddData(userID);
+
+    req.queryID = DB_PLAYER_GET_PLAYMOD_PUNISH_DATA;
+    return req;
+}
+
+QueryRequest PlayerDB::UpdatePlaymods(const string& playMods, uint32 userID, int32 ownerID)
+{
+    QueryRequest req(ownerID);
+    req.AddData(playMods, userID);
+
+    req.queryID = DB_PLAYER_UPDATE_PLAYMODS;
+    return req;
+}
+
 void DatabasePlayerExec(DatabasePool* pPool, QueryRequest& req, bool preapred, bool bulk)
 {
     if (req.queryID < 0)

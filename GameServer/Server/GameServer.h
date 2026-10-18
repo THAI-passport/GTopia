@@ -31,6 +31,7 @@ public:
 
 public:
     void ForceSaveEverything();
+    void ShutdownServersAfterSeconds(int32 timeSec);
 
 private:
     template <void (*Function)(GamePlayer*, ParsedTextPacket<38>&)> void RegisterMessagePacket(uint32 eventHash)
@@ -40,8 +41,11 @@ private:
 
 private:
     EventDispatcher<uint32, GamePlayer*, ParsedTextPacket<38>&> m_messagePacket;
+    Timer m_playersLastUpdateTimer;
 
-    Timer m_playersLastUpdateTime;
+    Timer m_serverShutdownTimer;
+    Timer m_serverShutdownAnnounceTimer;
+    int32 m_serverShutdownTimeSec;
 };
 
 GameServer* GetGameServer();

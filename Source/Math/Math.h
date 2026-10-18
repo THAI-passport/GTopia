@@ -1,11 +1,13 @@
 #pragma once
 
 #include "../Precompiled.h"
-#include <cmath>
 #include "Vector2.h"
+#include <cmath>
 
 #undef M_PI
 static const float M_PI = 3.14159265358979323846264338327950288f;
+
+// clang-format off
 
 template<typename T, typename U>
 inline T Min(T lhs, U rhs) { return lhs < rhs ? lhs : rhs; }
@@ -16,15 +18,18 @@ inline T Max(T lhs, U rhs) { return lhs > rhs ? lhs : rhs; }
 template<typename T>
 inline T Round(T x) { return floor(x + T(0.5)); }
 
+template <class T> T Mod(T x, T y) { return fmod(x, y); }
+
+template <class T>
+inline bool IsFinite(T d) { return isfinite(d); }
+
 template<typename T>
 inline T Clamp(T value, T min, T max)
 {
-    if(value < min) {
+    if(value < min)
         return min;
-    }
-    else if(value > max) {
+    else if(value > max)
         return max;
-    }
 
     return value;
 }

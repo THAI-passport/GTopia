@@ -12,13 +12,13 @@ add_role|Developer|1|@||
 set_name_color|6|
 set_chat_color|#|
 set_inherits|2|
-set_perms|state.smod|command.toggleplaymod|command.giveitem|command.finditem|
+set_perms|state.smod|command.toggleplaymod|command.giveitem|command.finditem|command.wimport|
 
 add_role|Moderator|2|@||
 set_name_color|#|
 set_chat_color|1|
 set_inherits|3|
-set_perms|state.mod|command.ghost|command.magic|command.ageworld|bypass_item.mod|
+set_perms|state.mod|command.ghost|command.magic|command.ageworld|bypass_item.mod|command.pban|command.mute|command.curse|
 
 add_role|Default|3|||
 set_name_color|w|

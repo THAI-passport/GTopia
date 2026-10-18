@@ -1,10 +1,12 @@
 #include "World.h"
 #include "../Context.h"
 #include "../Item/HarmonicCrystal.h"
+#include "../Lua/LuaHooks.h"
 #include "../Player/PlayerManager.h"
 #include "../Server/GamePresenceManager.h"
 #include "../Server/MasterBroadway.h"
 #include "../Server/UserCacheManager.h"
+#include "Holiday/HolidayManager.h"
 #include "IO/File.h"
 #include "IO/Log.h"
 #include "Math/Math.h"
@@ -69,6 +71,15 @@ void World::OnSuckerBlockRemoved(TileInfo* pTile)
     m_suckerManager.Remove(pTile);
 }
 
+uint16 World::GetCurrentWeather() const
+{
+    HolidayManager* pHolidayManager = GetHolidayManager();
+    if (pHolidayManager->IsHolidayActive("comet"))
+        return WEATHER_TYPE_COMET;
+
+    return WorldInfo::GetCurrentWeather();
+}
+
 void World::GenerateWorld(eWorldGenerationType type)
 {
     m_suckerManager.Reset();
@@ -77,34 +88,62 @@ void World::GenerateWorld(eWorldGenerationType type)
 
 bool World::InitWorld()
 {
-    if (m_databaseID == 0)
-        return false;
+    bool loadedSuccessfully = false;
+    string path;
 
-    string path = GetContext()->GetGameConfig()->worldSavePath + "/world_" + ToString(m_databaseID) + ".bin";
+    GameConfig* pGameConfig = GetContext()->GetGameConfig();
+    WorldManager* pWorldManager = GetWorldManager();
 
-    File file;
-    if (!file.Open(path))
-        return false;
-
-    uint32 fileSize = file.GetSize();
-    uint8* pData = new uint8[fileSize];
-
-    if (file.Read(pData, fileSize) != fileSize)
+    if (m_databaseID != 0)
     {
-        file.Close();
-        SAFE_DELETE_ARRAY(pData);
-        return false;
+        path = pGameConfig->worldSavePath + "/world_" + ToString(m_databaseID) + ".bin";
     }
 
-    file.Close();
+    if (pWorldManager->IsBalancerEnabled())
+    {
+        WorldBalanceConfigSchema* pBalancerConfig = pWorldManager->GetBalancedWorldConfig(GetWorldName());
+        if (pBalancerConfig)
+        {
+            path = pGameConfig->worldImportExportSavePath + "/" + pBalancerConfig->fileName + ".bin";
 
-    MemoryBuffer memBuffer(pData, fileSize);
-    Serialize(memBuffer, false, true);
+            if (!pBalancerConfig->holidayKey.empty())
+            {
+                path = pGameConfig->worldImportExportSavePath + "/" +
+                       (GetHolidayManager()->IsHolidayActive(pBalancerConfig->holidayKey)
+                            ? pBalancerConfig->fileName
+                            : pBalancerConfig->closeFileName) +
+                       ".bin";
+            }
+        }
+    }
 
-    SAFE_DELETE_ARRAY(pData);
+    if (!path.empty())
+    {
+        File file;
+        if (file.Open(path))
+        {
+            uint32 fileSize = file.GetSize();
+            MemoryBuffer fileBuffer(file.GetSize());
+
+            if (file.Read(fileBuffer.GetData(), fileSize) == fileSize)
+            {
+                MemoryBuffer memBuffer(fileBuffer.GetData(), fileSize);
+                Serialize(memBuffer, false, true);
+                loadedSuccessfully = true;
+            }
+        }
+    }
+    else
+        loadedSuccessfully = false;
+
+    if (!loadedSuccessfully)
+    {
+        GenerateWorld(WORLD_GENERATION_DEFAULT);
+        SaveToDatabase();
+    }
 
     m_suckerManager.ReInit();
-    return true;
+    return loadedSuccessfully;
 }
 
 void World::OnWorldDelete()
@@ -145,7 +184,7 @@ void World::SaveToDatabase()
     }
     else
     {
-        QueryRequest req = WorldDB::Save(GetWorlName(), GetDatabaseID(), GetInstanceID());
+        QueryRequest req = WorldDB::Save(GetWorldName(), GetDatabaseID(), GetInstanceID());
         req.callback = &World::SaveToDatabaseCB;
 
         DatabaseWorldExec(GetContext()->GetDatabasePool(), req);
@@ -251,12 +290,12 @@ bool World::ImportWorld(const string& name)
     if (name.empty())
         return false;
 
-    string worldName = GetWorlName();
+    string worldName = GetWorldName();
     if (worldName.empty())
         return false;
 
     File file;
-    if (!file.Open(GetProgramPath() + "/" + name + ".bin"))
+    if (!file.Open(GetContext()->GetGameConfig()->worldImportExportSavePath + "/" + name + ".bin"))
         return false;
 
     uint32 worldMemSize = file.GetSize();
@@ -273,7 +312,8 @@ bool World::ImportWorld(const string& name)
     RemoveAllPlayers();
 
     MemoryBuffer memBuffer(pData, worldMemSize);
-    Serialize(memBuffer, false, true);
+    Serialize(memBuffer, false, true, 0);
+
     SAFE_DELETE_ARRAY(pData);
     file.Close();
 
@@ -364,36 +404,36 @@ void World::AddPlayer(GamePlayer* pPlayer, bool newJoin)
 
     string worldSituationMsg;
 
-    WorldTileManager* pTileMgr = GetTileManager();
-    if (TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_PUNCH_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON))
+    WorldTileManager* pTileManager = GetTileManager();
+    if (TileInfo* pTile = pTileManager->GetKeyTile(KEY_TILE_PUNCH_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON))
     {
         if (!worldSituationMsg.empty())
             worldSituationMsg += ", ";
         worldSituationMsg += "`2NOPUNCH``";
     }
 
-    if (TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_ZOMBIE_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON))
+    if (TileInfo* pTile = pTileManager->GetKeyTile(KEY_TILE_ZOMBIE_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON))
     {
         if (!worldSituationMsg.empty())
             worldSituationMsg += ", ";
         worldSituationMsg += "`2IMMUNE``";
     }
 
-    if (TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_SIGNAL_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON))
+    if (TileInfo* pTile = pTileManager->GetKeyTile(KEY_TILE_SIGNAL_JAMMER); pTile && pTile->HasFlag(TILE_FLAG_IS_ON))
     {
         if (!worldSituationMsg.empty())
             worldSituationMsg += ", ";
         worldSituationMsg += "`4JAMMED``";
     }
 
-    if (TileInfo* pTile = pTileMgr->GetKeyTile(KEY_TILE_ANTIGRAVITY); pTile && pTile->HasFlag(TILE_FLAG_IS_ON))
+    if (TileInfo* pTile = pTileManager->GetKeyTile(KEY_TILE_ANTIGRAVITY); pTile && pTile->HasFlag(TILE_FLAG_IS_ON))
     {
         if (!worldSituationMsg.empty())
             worldSituationMsg += ", ";
         worldSituationMsg += "`2ANTIGRAVITY``";
     }
 
-    string worldEnterMsg = "`oWorld `w" + GetWorlName() + "`o ";
+    string worldEnterMsg = "`oWorld `w" + GetWorldName() + "`o ";
     if (!worldSituationMsg.empty())
     {
         worldEnterMsg += "`0[``" + worldSituationMsg + "`0] ";
@@ -402,6 +442,27 @@ void World::AddPlayer(GamePlayer* pPlayer, bool newJoin)
                      ToString(GetPlayerManager()->GetTotalPlayerCount()) + " `oonline.";
 
     pPlayer->SendOnConsoleMessage(worldEnterMsg);
+
+    if (TileInfo* pWorldLockTile = pTileManager->GetKeyTile(KEY_TILE_WORLD_LOCK))
+    {
+        if (TileExtra_Lock* pTileExtra = pWorldLockTile->GetExtra<TileExtra_Lock>())
+        {
+            GetUserCacheManager()->FetchMetadata(pPlayer->GetNetID(), CACHE_REQ_WORLD_ENTER_STAT_MESSAGE,
+                                                 {pTileExtra->ownerID}, {GetInstanceID()});
+        }
+    }
+
+    if (loginDetail.loginMode != LOGON_MODE_TRANSFER)
+    {
+        GameConfig* pGameConfig = GetContext()->GetGameConfig();
+        if (!pGameConfig->gameNews.empty())
+        {
+            pPlayer->SendOnDialogRequest(pGameConfig->gameNews, 1000);
+        }
+        pPlayer->GetLoginDetail().loginMode = LOGON_MODE_TRANSFER;
+    }
+
+    LUA_CALLBACK_NON_HANDLED("OnPlayerEnterWorld", pPlayer, this);
 }
 
 void World::PlayerLeaveWorld(GamePlayer* pPlayer, bool hardLeave)
@@ -414,6 +475,9 @@ void World::PlayerLeaveWorld(GamePlayer* pPlayer, bool hardLeave)
     for (uint16 i = 0; i < m_players.size(); ++i)
     {
         GamePlayer* pWorldPlayer = m_players[i];
+        if (!pWorldPlayer)
+            continue;
+
         pWorldPlayer->SendOnRemove(pPlayer->GetNetID());
 
         if (pWorldPlayer == pPlayer)
@@ -461,11 +525,14 @@ void World::PlayerLeaveWorld(GamePlayer* pPlayer, bool hardLeave)
         pPlayer->GetModController().RemovePlayMod(PLAYMOD_TYPE_IN_THE_SPOTLIGHT);
         pPlayer->SetCurrentWorld(0);
         pPlayer->ModifyInventoryItem(ITEM_ID_MAGPLANT_5000_REMOTE, -1);
+        pPlayer->ModifyInventoryItem(ITEM_ID_WORLD_KEY, -1);
+        pPlayer->ModifyInventoryItem(ITEM_ID_GUILD_KEY, -1);
 
         if (hardLeave)
         {
             GetMasterBroadway()->SendPlayerLeftWorld(pPlayer->GetUserID(), GetInstanceID());
             GetWorldManager()->SendWorldMenuRequest(pPlayer);
+            LUA_CALLBACK_NON_HANDLED("OnPlayerLeaveWorld", pPlayer, this);
         }
     }
 
@@ -922,7 +989,7 @@ void World::PlaySFXForEveryone(const string& fileName, int32 delay)
     }
 }
 
-void World::SendPlayPositionedToAll(GamePlayer* pPlayer, const string& audio)
+void World::SendPlayPositionedToAll(GamePlayer* pPlayer, const string& audio, int32 delay)
 {
     if (!pPlayer)
         return;
@@ -935,7 +1002,7 @@ void World::SendPlayPositionedToAll(GamePlayer* pPlayer, const string& audio)
         if (!pWorldPlayer)
             continue;
 
-        SendCallFunctionPacket(pWorldPlayer->GetNetID(), pData, size, pPlayer->GetNetID());
+        SendCallFunctionPacket(pWorldPlayer->GetNetID(), pData, size, pPlayer->GetNetID(), delay);
     }
 
     SAFE_DELETE_ARRAY(pData);
@@ -1148,6 +1215,8 @@ void World::SendGamePacketToGroup(std::vector<GamePlayer*> players, GameUpdatePa
 
 void World::SendCurrentWeatherToAll()
 {
+    HolidayManager* pHolidayManager = GetHolidayManager();
+
     uint32 size = 0;
     uint8* pData = Proton::SerializeToMem(VariantPacket::OnSetCurrentWeather(GetCurrentWeather()), &size, nullptr);
 
@@ -1422,6 +1491,22 @@ void World::ThrowItemToPositionFromToPosition(const Vector2Float& srcPos, const 
     SendGamePacketToAll(&packet);
 }
 
+void World::ThrowItemToPlayerToPlayer(GamePlayer* pFrom, GamePlayer* pTarget, int32 itemID, int32 count)
+{
+    if (!pFrom || !pTarget)
+        return;
+
+    GameUpdatePacket packet;
+    packet.type = NET_GAME_PACKET_ITEM_EFFECT;
+    packet.field_5 = pFrom->GetNetID();
+    packet.field_3 = 3;
+    packet.field_4 = pTarget->GetNetID();
+    packet.field_11 = ToItemClientID(itemID);
+    packet.field_12 = 0;
+
+    SendGamePacketToAll(&packet);
+}
+
 uint32 World::PathfindCalcDistance(TileInfo* pNode, TileInfo* pStart, TileInfo* pGoal)
 {
     if (!pNode || !pStart || !pGoal)
@@ -1464,7 +1549,7 @@ bool World::PathfindAddNeighborsToList(GamePlayer* pPlayer, TileInfo* pCurrent, 
     if (!pCurrent || !pGoal)
         return false;
 
-    WorldTileManager* pTileMgr = GetTileManager();
+    WorldTileManager* pTileManager = GetTileManager();
     Vector2Int vCurrentPos = pCurrent->GetPos();
 
     ItemInfo* pCurrentItem = GetItemInfoManager()->GetItemByID(pCurrent->GetDisplayedItem());
@@ -1491,7 +1576,7 @@ bool World::PathfindAddNeighborsToList(GamePlayer* pPlayer, TileInfo* pCurrent, 
                     continue;
             }
 
-            TileInfo* pTile = pTileMgr->GetTile(vCurrentPos.x + dy, vCurrentPos.y + dx);
+            TileInfo* pTile = pTileManager->GetTile(vCurrentPos.x + dy, vCurrentPos.y + dx);
             if (!pTile)
                 continue;
 
@@ -1613,13 +1698,13 @@ bool World::CanPlayerTravelStraight(GamePlayer* pPlayer, TileInfo* pStart, TileI
     float absDx = Abs(d.x);
     float absDy = Abs(d.y);
 
-    WorldTileManager* pTileMgr = GetTileManager();
+    WorldTileManager* pTileManager = GetTileManager();
 
     if (Abs(absDx - absDy) >= 0.1)
     {
         for (int32 i = 0; i < step; ++i)
         {
-            TileInfo* pTile = pTileMgr->GetTileByWorldPos(vStartPos);
+            TileInfo* pTile = pTileManager->GetTileByWorldPos(vStartPos);
 
             if (pTile != pPrevTile)
             {
@@ -2615,9 +2700,9 @@ void World::OnAddLock(GamePlayer* pPlayer, TileInfo* pTile, int16 lockID)
     {
         string playerName = pPlayer->GetDisplayName(false);
 
-        SendTalkBubbleAndConsoleToAll("`5[`w" + GetWorlName() + " has been `$World Locked`` by " + playerName + "`5]``",
-                                      true, pPlayer);
-        LOGGER_LOG_INFO("World %s has been locked by %d", GetWorlName().c_str(), pPlayer->GetUserID());
+        SendTalkBubbleAndConsoleToAll(
+            "`5[`w" + GetWorldName() + " has been `$World Locked`` by " + playerName + "`5]``", true, pPlayer);
+        LOGGER_LOG_INFO("World %s has been locked by %d", GetWorldName().c_str(), pPlayer->GetUserID());
 
         SendNameChangeToAll(pPlayer);
     }
@@ -2647,8 +2732,8 @@ void World::OnRemoveLock(GamePlayer* pPlayer, TileInfo* pTile)
 
     if (IsWorldLock(pItem->id))
     {
-        SendConsoleMessageToAll("`5[```w" + GetWorlName() + "`` has had its `$World Lock`` removed!`5]``");
-        LOGGER_LOG_INFO("Removed world lock in %s (%d) by %d", GetWorlName().c_str(), GetDatabaseID(),
+        SendConsoleMessageToAll("`5[```w" + GetWorldName() + "`` has had its `$World Lock`` removed!`5]``");
+        LOGGER_LOG_INFO("Removed world lock in %s (%d) by %d", GetWorldName().c_str(), GetDatabaseID(),
                         pPlayer->GetUserID());
 
         for (auto& pWorldPlayer : m_players)
@@ -3133,9 +3218,18 @@ void World::OnTileDestroyedDropObject(GamePlayer* pPlayer, TileInfo* pTile)
         DropObjectOnTile(pTile, ITEM_ID_COMET_DUST, 1, GetRandomItemDropOffset(), true);
     }
 
-    if (pItem->type == ITEM_TYPE_TREASURE)
+    switch (pItem->type)
     {
-        return;
+        case ITEM_TYPE_FOSSIL:
+        {
+            if (pTile->HasFlag(TILE_FLAG_IS_ON))
+            {
+                DropObjectOnTile(pTile, ITEM_ID_FOSSIL, 1, GetRandomItemDropOffset(), true,
+                                 INVENTORY_FLAG_NEVER_PICKED_UP);
+                return;
+            }
+            break;
+        }
     }
 
     bool dropBlock = false;
@@ -3176,124 +3270,149 @@ void World::OnConsumeConsumable(GamePlayer* pPlayer, GamePlayer* pTarget, TileIn
         }
     }
 
-    ConsumableInfo* pConsumableInfo = GetItemInfoManager()->GetConsumableInfo(pItem->id);
-    if (!pConsumableInfo)
-        return;
-
     if (pPlayer->GetInventory().GetCountOfItem(pItem->id) < 1)
         return;
 
-    if ((pConsumableInfo->HasFlag(CONSUMABLE_FLAG_NEED_TARGET) && !pTarget) ||
-        (pConsumableInfo->HasFlag(CONSUMABLE_FLAG_SELF_ONLY) && pPlayer != pTarget) ||
-        (pConsumableInfo->HasFlag(CONSUMABLE_FLAG_NEED_TILE) && !pTile))
+    if (!LUA_CALLBACK_HANDLED("OnConsumeConsumable", pPlayer, pTarget, pTile, pItem))
     {
-        if (!pConsumableInfo->HasFlag(CONSUMABLE_FLAG_NEED_TARGET) || pTarget)
+        ConsumableInfo* pConsumableInfo = GetItemInfoManager()->GetConsumableInfo(pItem->id);
+        if (!pConsumableInfo)
+            return;
+
+        if ((pConsumableInfo->HasFlag(CONSUMABLE_FLAG_NEED_TARGET) && !pTarget) ||
+            (pConsumableInfo->HasFlag(CONSUMABLE_FLAG_SELF_ONLY) && pPlayer != pTarget) ||
+            (pConsumableInfo->HasFlag(CONSUMABLE_FLAG_NEED_TILE) && !pTile))
         {
-            if (pConsumableInfo->HasFlag(CONSUMABLE_FLAG_SELF_ONLY) && pPlayer != pTarget)
+            if (!pConsumableInfo->HasFlag(CONSUMABLE_FLAG_NEED_TARGET) || pTarget)
             {
-                pPlayer->SendOnTalkBubble("You can only use that on yourself.", true);
+                if (pConsumableInfo->HasFlag(CONSUMABLE_FLAG_SELF_ONLY) && pPlayer != pTarget)
+                {
+                    pPlayer->SendOnTalkBubble("You can only use that on yourself.", true);
+                }
             }
-        }
-        else
-        {
-            pPlayer->SendOnTalkBubble("Must be used on a person.", true);
-        }
-
-        return;
-    }
-
-    if (pPlayer == pTarget && pItem->HasFlag(ITEM_FLAG_NOSELF))
-    {
-        pPlayer->SendOnTalkBubble("Use that on somebody else!", true);
-        return;
-    }
-
-    if (pConsumableInfo->requiredAmount > pPlayer->GetInventory().GetCountOfItem(pConsumableInfo->itemID) && !pTarget)
-    {
-        if (!pConsumableInfo->failMessage.empty())
-        {
-            pPlayer->SendOnTalkBubble(pConsumableInfo->failMessage, false);
-        }
-        return;
-    }
-
-    if (pItem->id == ITEM_ID_BALANCE_MOONCAKE)
-    {
-        pPlayer->SendOnTalkBubble("Ew, it has raisins! I'm not eating that.", false);
-        return;
-    }
-    else if (pItem->id == ITEM_ID_ANCESTOR_MOONCAKE)
-    {
-        pPlayer->SendOnTalkBubble("That's like a hundred years old. No.", false);
-        return;
-    }
-
-    if (pPlayer == pTarget)
-    {
-    }
-
-    PlayerInventory& inventory = pPlayer->GetInventory();
-
-    if (pConsumableInfo->consumableType == CONSUMABLE_TYPE_NONE)
-    {
-        switch (pConsumableInfo->itemID)
-        {
-            case ITEM_ID_POCKET_LIGHTER:
+            else
             {
-                if (pTile->HasFlag(TILE_FLAG_ON_FIRE))
-                {
-                    pPlayer->SendOnTalkBubble("That block can't get any hotter!", false);
-                    return;
-                }
+                pPlayer->SendOnTalkBubble("Must be used on a person.", true);
+            }
 
-                if (pTile->GetDisplayedItem() == ITEM_ID_BLANK)
-                {
-                    pPlayer->SendOnTalkBubble("There's nothing to burn!", false);
-                    return;
-                }
+            return;
+        }
 
-                if (pTile->HasFlag(TILE_FLAG_IS_WET))
-                {
-                    pPlayer->SendOnTalkBubble("You can't burn water.", false);
-                    return;
-                }
+        if (pPlayer == pTarget && pItem->HasFlag(ITEM_FLAG_NOSELF))
+        {
+            pPlayer->SendOnTalkBubble("Use that on somebody else!", true);
+            return;
+        }
 
-                if (!pTile->IsFlammable())
-                {
-                    pPlayer->SendOnTalkBubble("That won't burn!", false);
-                    return;
-                }
+        if (pConsumableInfo->requiredAmount > pPlayer->GetInventory().GetCountOfItem(pConsumableInfo->itemID) &&
+            !pTarget)
+        {
+            if (!pConsumableInfo->failMessage.empty())
+            {
+                pPlayer->SendOnTalkBubble(pConsumableInfo->failMessage, false);
+            }
+            return;
+        }
 
-                Vector2Int& vTilePos = pTile->GetPos();
-                TileInfo* pTopTile = GetTileManager()->GetTile(vTilePos.x, vTilePos.y - 1);
-                if (pTopTile)
-                {
-                    ItemInfo* pTopItem = GetItemInfoManager()->GetItemByID(pTopTile->GetDisplayedItem());
-                    if (!pTopItem)
-                        return;
+        if (pItem->id == ITEM_ID_BALANCE_MOONCAKE)
+        {
+            pPlayer->SendOnTalkBubble("Ew, it has raisins! I'm not eating that.", false);
+            return;
+        }
+        else if (pItem->id == ITEM_ID_ANCESTOR_MOONCAKE)
+        {
+            pPlayer->SendOnTalkBubble("That's like a hundred years old. No.", false);
+            return;
+        }
 
-                    if (pTopItem->type == ITEM_TYPE_CHECKPOINT || pTopItem->type == ITEM_TYPE_TEAM)
+        PlayerInventory& inventory = pPlayer->GetInventory();
+
+        if (pConsumableInfo->consumableType == CONSUMABLE_TYPE_NONE)
+        {
+            switch (pConsumableInfo->itemID)
+            {
+                case ITEM_ID_POCKET_LIGHTER:
+                {
+                    if (pTile->HasFlag(TILE_FLAG_ON_FIRE))
                     {
-                        pPlayer->SendOnTalkBubble("That'd just be rude.", false);
+                        pPlayer->SendOnTalkBubble("That block can't get any hotter!", false);
                         return;
                     }
+
+                    if (pTile->GetDisplayedItem() == ITEM_ID_BLANK)
+                    {
+                        pPlayer->SendOnTalkBubble("There's nothing to burn!", false);
+                        return;
+                    }
+
+                    if (pTile->HasFlag(TILE_FLAG_IS_WET))
+                    {
+                        pPlayer->SendOnTalkBubble("You can't burn water.", false);
+                        return;
+                    }
+
+                    if (!pTile->IsFlammable())
+                    {
+                        pPlayer->SendOnTalkBubble("That won't burn!", false);
+                        return;
+                    }
+
+                    Vector2Int& vTilePos = pTile->GetPos();
+                    TileInfo* pTopTile = GetTileManager()->GetTile(vTilePos.x, vTilePos.y - 1);
+                    if (pTopTile)
+                    {
+                        ItemInfo* pTopItem = GetItemInfoManager()->GetItemByID(pTopTile->GetDisplayedItem());
+                        if (!pTopItem)
+                            return;
+
+                        if (pTopItem->type == ITEM_TYPE_CHECKPOINT || pTopItem->type == ITEM_TYPE_TEAM)
+                        {
+                            pPlayer->SendOnTalkBubble("That'd just be rude.", false);
+                            return;
+                        }
+                    }
+
+                    if (!FlameUpTile(pTile))
+                        return;
+
+                    SendTileUpdate(pTile);
+                    SendTalkBubbleAndConsoleToAll("`4MWAHAHAHA!! FIRE FIRE FIRE``", false, pPlayer);
+                    break;
                 }
 
-                if (!FlameUpTile(pTile))
-                    return;
-
-                SendTileUpdate(pTile);
-                SendTalkBubbleAndConsoleToAll("`4MWAHAHAHA!! FIRE FIRE FIRE``", false, pPlayer);
-                break;
-            }
-
-            case ITEM_ID_WATER_BUCKET:
-            {
-                if (pTile->HasFlag(TILE_FLAG_ON_FIRE))
+                case ITEM_ID_WATER_BUCKET:
                 {
-                    PutOutFire(pTile, pPlayer);
+                    if (pTile->HasFlag(TILE_FLAG_ON_FIRE))
+                    {
+                        PutOutFire(pTile, pPlayer);
+                        SendTileUpdate(pTile);
+                        pPlayer->ModifyInventoryItem(ITEM_ID_WATER_BUCKET, -1);
+
+                        float randX = RandomRangeFloat(0, 32);
+                        float randY = RandomRangeFloat(0, 32);
+
+                        Vector2Float vWorldPos = pTile->GetWorldPos();
+                        vWorldPos.x += randX;
+                        vWorldPos.y += randY;
+
+                        ThrowItemToPositionFromPlayer(pPlayer, vWorldPos, ITEM_ID_WATER_BUCKET, 1);
+                        return;
+                    }
+
+                    if (!PlayerHasAccessOnTile(pPlayer, pTile))
+                        return;
+
+                    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
+                    if (!pItem)
+                        return;
+
+                    if (pItem->id == ITEM_ID_MAIN_DOOR || pItem->type == ITEM_TYPE_BEDROCK)
+                        return;
+
+                    bool isWetBefore = pTile->HasFlag(TILE_FLAG_IS_WET);
+
+                    pTile->ToggleFlag(TILE_FLAG_IS_WET);
                     SendTileUpdate(pTile);
-                    pPlayer->ModifyInventoryItem(ITEM_ID_WATER_BUCKET, -1);
 
                     float randX = RandomRangeFloat(0, 32);
                     float randY = RandomRangeFloat(0, 32);
@@ -3303,194 +3422,223 @@ void World::OnConsumeConsumable(GamePlayer* pPlayer, GamePlayer* pTarget, TileIn
                     vWorldPos.y += randY;
 
                     ThrowItemToPositionFromPlayer(pPlayer, vWorldPos, ITEM_ID_WATER_BUCKET, 1);
-                    return;
-                }
 
-                if (!PlayerHasAccessOnTile(pPlayer, pTile))
-                    return;
-
-                ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetDisplayedItem());
-                if (!pItem)
-                    return;
-
-                if (pItem->id == ITEM_ID_MAIN_DOOR || pItem->type == ITEM_TYPE_BEDROCK)
-                    return;
-
-                bool isWetBefore = pTile->HasFlag(TILE_FLAG_IS_WET);
-
-                pTile->ToggleFlag(TILE_FLAG_IS_WET);
-                SendTileUpdate(pTile);
-
-                float randX = RandomRangeFloat(0, 32);
-                float randY = RandomRangeFloat(0, 32);
-
-                Vector2Float vWorldPos = pTile->GetWorldPos();
-                vWorldPos.x += randX;
-                vWorldPos.y += randY;
-
-                ThrowItemToPositionFromPlayer(pPlayer, vWorldPos, ITEM_ID_WATER_BUCKET, 1);
-
-                if (isWetBefore)
-                {
-                    if (RandomRangeInt(0, 100) < 75)
+                    if (isWetBefore)
                     {
-                        pPlayer->ModifyInventoryItem(ITEM_ID_WATER_BUCKET, 1);
+                        if (RandomRangeInt(0, 100) < 75)
+                        {
+                            pPlayer->ModifyInventoryItem(ITEM_ID_WATER_BUCKET, 1);
+                        }
                     }
-                }
-                else
-                {
-                    pPlayer->ModifyInventoryItem(ITEM_ID_WATER_BUCKET, -1);
-                }
-
-                return;
-            }
-
-            case ITEM_ID_GHOST_JAR:
-            {
-                Vector2Int& vTilePos = pTile->GetPos();
-                if (!m_pNpcManager->SpawnGhostTrap(pPlayer, vTilePos.x, vTilePos.y))
-                    return;
-
-                break;
-            }
-
-            case ITEM_ID_GHOST_IN_A_JAR:
-            case ITEM_ID_MIND_GHOST_IN_A_JAR:
-            {
-                TileInfo* pGhostJammer = GetTileManager()->GetKeyTile(KEY_TILE_GHOST_CHARM);
-                if (pGhostJammer && pGhostJammer->HasFlag(TILE_FLAG_IS_ON))
-                {
-                    pPlayer->SendOnTalkBubble("Ghosts are too scared to appear in this world!", false);
-                    return;
-                }
-
-                ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetFG());
-                if (!pTileItem)
-                    return;
-
-                if (pTileItem->type == ITEM_TYPE_FIELD_NODE && pConsumableInfo->itemID == ITEM_ID_GHOST_IN_A_JAR)
-                {
-                    if (pTile->HasFlag(TILE_FLAG_IS_ON))
+                    else
                     {
-                        pPlayer->SendOnTalkBubble("That node is already active don't waste your ghosts.", false);
-                        return;
+                        pPlayer->ModifyInventoryItem(ITEM_ID_WATER_BUCKET, -1);
                     }
 
-                    pTile->SetFlag(TILE_FLAG_IS_ON);
-                    TileExtra_FieldNode* pTileExtra = pTile->GetExtra<TileExtra_FieldNode>();
-                    if (pTileExtra)
-                    {
-                        pTileExtra->expireTime = Time::GetSystemTime() + 45000;
-                    }
-
-                    SendTileUpdate(pTile);
+                    return;
                 }
-                else
-                {
-                    eNPCType ghostType = NPC_TYPE_GHOST;
-                    if (pConsumableInfo->itemID == ITEM_ID_MIND_GHOST_IN_A_JAR)
-                        ghostType = NPC_TYPE_MIND_CONTROL_GHOST;
 
+                case ITEM_ID_GHOST_JAR:
+                {
                     Vector2Int& vTilePos = pTile->GetPos();
-                    if (!m_pNpcManager->SpawnGhost(ghostType, vTilePos.x, vTilePos.y, false))
+                    if (!m_pNpcManager->SpawnGhostTrap(pPlayer, vTilePos.x, vTilePos.y))
+                        return;
+
+                    break;
+                }
+
+                case ITEM_ID_GHOST_IN_A_JAR:
+                case ITEM_ID_MIND_GHOST_IN_A_JAR:
+                {
+                    TileInfo* pGhostJammer = GetTileManager()->GetKeyTile(KEY_TILE_GHOST_CHARM);
+                    if (pGhostJammer && pGhostJammer->HasFlag(TILE_FLAG_IS_ON))
                     {
-                        pPlayer->SendOnTalkBubble("This world is haunted enough already!", false);
+                        pPlayer->SendOnTalkBubble("Ghosts are too scared to appear in this world!", false);
                         return;
                     }
+
+                    ItemInfo* pTileItem = GetItemInfoManager()->GetItemByID(pTile->GetFG());
+                    if (!pTileItem)
+                        return;
+
+                    if (pTileItem->type == ITEM_TYPE_FIELD_NODE && pConsumableInfo->itemID == ITEM_ID_GHOST_IN_A_JAR)
+                    {
+                        if (pTile->HasFlag(TILE_FLAG_IS_ON))
+                        {
+                            pPlayer->SendOnTalkBubble("That node is already active don't waste your ghosts.", false);
+                            return;
+                        }
+
+                        pTile->SetFlag(TILE_FLAG_IS_ON);
+                        TileExtra_FieldNode* pTileExtra = pTile->GetExtra<TileExtra_FieldNode>();
+                        if (pTileExtra)
+                        {
+                            pTileExtra->expireTime = Time::GetSystemTime() + 45000;
+                        }
+
+                        SendTileUpdate(pTile);
+                    }
+                    else
+                    {
+                        eNPCType ghostType = NPC_TYPE_GHOST;
+                        if (pConsumableInfo->itemID == ITEM_ID_MIND_GHOST_IN_A_JAR)
+                            ghostType = NPC_TYPE_MIND_CONTROL_GHOST;
+
+                        Vector2Int& vTilePos = pTile->GetPos();
+                        if (!m_pNpcManager->SpawnGhost(ghostType, vTilePos.x, vTilePos.y, false))
+                        {
+                            pPlayer->SendOnTalkBubble("This world is haunted enough already!", false);
+                            return;
+                        }
+                    }
+
+                    SendPlayPositionedToAll(pPlayer, "punch_glass.wav");
+                    break;
                 }
 
-                SendPlayPositionedToAll(pPlayer, "punch_glass.wav");
-                break;
-            }
-        }
-    }
-    else if (pConsumableInfo->consumableType == CONSUMABLE_TYPE_CRAFT)
-    {
-        if (pConsumableInfo->rewardItemID == ITEM_ID_URANIUM_GLOWING_LURE)
-        {
-            if (inventory.GetClothByPart(BODY_PART_HAT) != ITEM_ID_HAZMAT_HELMET)
-            {
-                pPlayer->SendOnTalkBubble("`4You need a Hazmat Helmet or you'll end up horribly deformed!``", true);
-                return;
-            }
-
-            if (inventory.GetClothByPart(BODY_PART_SHIRT) != ITEM_ID_HAZMAT_SUIT)
-            {
-                pPlayer->SendOnTalkBubble("`4You need a Hazmat Suit or you'll end up horribly deformed!``", true);
-                return;
-            }
-
-            if (inventory.GetClothByPart(BODY_PART_PANT) != ITEM_ID_HAZMAT_PANTS)
-            {
-                pPlayer->SendOnTalkBubble("`4You need a Hazmat Pants or you'll end up horribly deformed!``", true);
-                return;
-            }
-
-            if (inventory.GetClothByPart(BODY_PART_SHOE) != ITEM_ID_HAZMAT_BOOTS)
-            {
-                pPlayer->SendOnTalkBubble("`4You need a Hazmat Boots or you'll end up horribly deformed!``", true);
-                return;
-            }
-        }
-
-        if (pConsumableInfo->rewardItemID == ITEM_ID_MEGA_PELLET_BAIT)
-        {
-            if (inventory.GetClothByPart(BODY_PART_HAT) != ITEM_ID_BUCKSKIN_HOOD)
-            {
-                pPlayer->SendOnTalkBubble("4You need to be wearing a Buckskin Hood or you'll end up frozen!`", true);
-                return;
-            }
-
-            if (inventory.GetClothByPart(BODY_PART_SHIRT) != ITEM_ID_BUCKSKIN_JACKET)
-            {
-                pPlayer->SendOnTalkBubble("4You need to be wearing a Buckskin Jacket or you'll end up frozen!`", true);
-                return;
-            }
-
-            if (inventory.GetClothByPart(BODY_PART_CHESTITEM) != ITEM_ID_WINTER_SCARF)
-            {
-                pPlayer->SendOnTalkBubble("`4You need to be wearing a Winter Scarf or you'll end up frozen!``", true);
-                return;
-            }
-
-            if (inventory.GetClothByPart(BODY_PART_PANT) != ITEM_ID_BUCKSKIN_PANTS)
-            {
-                pPlayer->SendOnTalkBubble("4You need to be wearing a Buckskin Pants or you'll end up frozen!`", true);
-                return;
-            }
-        }
-
-        uint8 fitCount = inventory.GetFitItemCount(pConsumableInfo->rewardItemID);
-        if (fitCount == 0)
-        {
-            pPlayer->SendOnTalkBubble("You need a free slot to consume this item.", false);
-            return;
-        }
-
-        pPlayer->ModifyInventoryItem(pConsumableInfo->rewardItemID, pConsumableInfo->rewardCount);
-
-        if (!pConsumableInfo->successMessage.empty())
-        {
-            pPlayer->SendOnTalkBubble(pConsumableInfo->successMessage, false);
-        }
-
-        SendParticleEffectToAll(PARTICLE_EFFECT_TRANSFORM_FX, pPlayer->GetWorldPos());
-
-        if (pConsumableInfo->HasFlag(CONSUMABLE_FLAG_EQUIP))
-        {
-            ItemInfo* pRewardItem = GetItemInfoManager()->GetItemByID(pConsumableInfo->rewardItemID);
-            if (pRewardItem)
-            {
-                if (inventory.GetClothByPart((eBodyPart)pRewardItem->bodyPart) != pRewardItem->id)
+                case ITEM_ID_FOSSIL_BRUSH:
                 {
-                    pPlayer->ToggleCloth(pRewardItem->id);
+                    bool fossilPolished = false;
+
+                    auto objects = GetObjectManager()->GetObjectsInRectByItemID(pTile->GetRect(), ITEM_ID_FOSSIL);
+                    for (auto& pObject : objects)
+                    {
+                        if (!pObject)
+                            continue;
+
+                        if (!pObject->HasFlag(INVENTORY_FLAG_NEVER_PICKED_UP) || pObject->count != 1)
+                            continue;
+
+                        pObject->itemID = ITEM_ID_POLISHED_FOSSIL;
+                        ModifyObject(*pObject);
+
+                        pPlayer->SendOnTalkBubble("You polished the `2Fossil``, using up 1 `2Fossil Brush``.", false);
+                        SendPlayPositionedToAll(pPlayer, "balloon.wav");
+
+                        fossilPolished = true;
+                        break;
+                    }
+
+                    if (!fossilPolished)
+                    {
+                        if (IsFossilRock(pTile->GetFG()))
+                        {
+                            pPlayer->SendOnTalkBubble(
+                                "You need to extract the fossil before you can brush it! But don't pick it up!", false);
+                            return;
+                        }
+                        else
+                        {
+                            pPlayer->SendOnTalkBubble("You can only brush Fossils that have never been picked up!",
+                                                      false);
+                            return;
+                        }
+                    }
+
+                    break;
+                }
+
+                case ITEM_ID_LEMON:
+                {
+                    SendPlayPositionedToAll(pTarget, "splat.wav");
+                    SendTalkBubbleAndConsoleToAll(":~( `4AH MY EYES!!!", false, pTarget);
+                    ThrowItemToPlayerToPlayer(pPlayer, pTarget, ITEM_ID_LEMON, 1);
+                    break;
                 }
             }
         }
-    }
+        else if (pConsumableInfo->consumableType == CONSUMABLE_TYPE_CRAFT)
+        {
+            if (pConsumableInfo->rewardItemID == ITEM_ID_URANIUM_GLOWING_LURE)
+            {
+                if (inventory.GetClothByPart(BODY_PART_HAT) != ITEM_ID_HAZMAT_HELMET)
+                {
+                    pPlayer->SendOnTalkBubble("`4You need a Hazmat Helmet or you'll end up horribly deformed!``", true);
+                    return;
+                }
 
-    pPlayer->GiveXP(pConsumableInfo->rewardCount);
-    pPlayer->ModifyInventoryItem(pItem->id, -pConsumableInfo->requiredAmount);
+                if (inventory.GetClothByPart(BODY_PART_SHIRT) != ITEM_ID_HAZMAT_SUIT)
+                {
+                    pPlayer->SendOnTalkBubble("`4You need a Hazmat Suit or you'll end up horribly deformed!``", true);
+                    return;
+                }
+
+                if (inventory.GetClothByPart(BODY_PART_PANT) != ITEM_ID_HAZMAT_PANTS)
+                {
+                    pPlayer->SendOnTalkBubble("`4You need a Hazmat Pants or you'll end up horribly deformed!``", true);
+                    return;
+                }
+
+                if (inventory.GetClothByPart(BODY_PART_SHOE) != ITEM_ID_HAZMAT_BOOTS)
+                {
+                    pPlayer->SendOnTalkBubble("`4You need a Hazmat Boots or you'll end up horribly deformed!``", true);
+                    return;
+                }
+            }
+
+            if (pConsumableInfo->rewardItemID == ITEM_ID_MEGA_PELLET_BAIT)
+            {
+                if (inventory.GetClothByPart(BODY_PART_HAT) != ITEM_ID_BUCKSKIN_HOOD)
+                {
+                    pPlayer->SendOnTalkBubble("4You need to be wearing a Buckskin Hood or you'll end up frozen!`",
+                                              true);
+                    return;
+                }
+
+                if (inventory.GetClothByPart(BODY_PART_SHIRT) != ITEM_ID_BUCKSKIN_JACKET)
+                {
+                    pPlayer->SendOnTalkBubble("4You need to be wearing a Buckskin Jacket or you'll end up frozen!`",
+                                              true);
+                    return;
+                }
+
+                if (inventory.GetClothByPart(BODY_PART_CHESTITEM) != ITEM_ID_WINTER_SCARF)
+                {
+                    pPlayer->SendOnTalkBubble("`4You need to be wearing a Winter Scarf or you'll end up frozen!``",
+                                              true);
+                    return;
+                }
+
+                if (inventory.GetClothByPart(BODY_PART_PANT) != ITEM_ID_BUCKSKIN_PANTS)
+                {
+                    pPlayer->SendOnTalkBubble("4You need to be wearing a Buckskin Pants or you'll end up frozen!`",
+                                              true);
+                    return;
+                }
+            }
+
+            uint8 fitCount = inventory.GetFitItemCount(pConsumableInfo->rewardItemID);
+            if (fitCount == 0)
+            {
+                pPlayer->SendOnTalkBubble("You need a free slot to consume this item.", false);
+                return;
+            }
+
+            pPlayer->ModifyInventoryItem(pConsumableInfo->rewardItemID, pConsumableInfo->rewardCount);
+
+            if (!pConsumableInfo->successMessage.empty())
+            {
+                pPlayer->SendOnTalkBubble(pConsumableInfo->successMessage, false);
+            }
+
+            SendParticleEffectToAll(PARTICLE_EFFECT_TRANSFORM_FX, pPlayer->GetWorldPos());
+
+            if (pConsumableInfo->HasFlag(CONSUMABLE_FLAG_EQUIP))
+            {
+                ItemInfo* pRewardItem = GetItemInfoManager()->GetItemByID(pConsumableInfo->rewardItemID);
+                if (pRewardItem)
+                {
+                    if (inventory.GetClothByPart((eBodyPart)pRewardItem->GetBodyPart()) != pRewardItem->id)
+                    {
+                        pPlayer->ToggleCloth(pRewardItem->id);
+                    }
+                }
+            }
+        }
+
+        pPlayer->GiveXP(pConsumableInfo->rewardCount);
+        pPlayer->ModifyInventoryItem(pItem->id, -pConsumableInfo->requiredAmount);
+    }
 
     if (pItem->rarity > 1 && pItem->rarity < 999 && pTile && !pTile->IsCollidable())
     {
@@ -3711,7 +3859,8 @@ void World::DropGemsOnTile(TileInfo* pTile, uint32 gemCount)
     }
 }
 
-void World::DropObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const Vector2Float& offset, bool merge)
+void World::DropObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const Vector2Float& offset, bool merge,
+                             eInventoryFlags flags)
 {
     if (!pTile)
         return;
@@ -3734,6 +3883,7 @@ void World::DropObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const V
     obj.itemID = pItem->id;
     obj.count = count;
     obj.pos = vBasePos + offset;
+    obj.flags = flags;
 
     if (merge)
     {
@@ -3791,9 +3941,7 @@ void World::DropObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const V
             for (auto& pObj : objsInRect)
             {
                 if (!pObj)
-                {
                     continue;
-                }
 
                 if (pObj->count == 0)
                 {
@@ -3828,7 +3976,8 @@ void World::DropObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const V
     DropObject(obj);
 }
 
-void World::DropOrSuckObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const Vector2Float& offset, bool merge)
+void World::DropOrSuckObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const Vector2Float& offset, bool merge,
+                                   eInventoryFlags flags)
 {
     if (!pTile)
         return;
@@ -3876,11 +4025,11 @@ void World::DropOrSuckObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, c
     }
     else
     {
-        DropObjectOnTile(pTile, itemID, count, offset, merge);
+        DropObjectOnTile(pTile, itemID, count, offset, merge, flags);
     }
 }
 
-void World::DropObject(int16 itemID, uint8 count, const Vector2Float& pos)
+void World::DropObject(int16 itemID, uint8 count, const Vector2Float& pos, eInventoryFlags flags)
 {
     GameUpdatePacket packet;
     packet.type = NET_GAME_PACKET_ITEM_CHANGE_OBJECT;
@@ -3888,13 +4037,48 @@ void World::DropObject(int16 itemID, uint8 count, const Vector2Float& pos)
     packet.field_8.x = pos.x;
     packet.field_8.y = pos.y;
     packet.field_6 = count;
-    // packet.worldObjectFlags = obj.flags;
+    packet.field_1 = flags;
     packet.field_4 = -1;
 
     GetObjectManager()->HandleObjectPackets(&packet);
 
     packet.field_7 = ToItemClientID(itemID);
     SendGamePacketToAll(&packet);
+}
+
+void World::DropRandomObjectOnGround(int16 itemID, uint32 count, std::vector<uint32>* trackedObjs)
+{
+    if (trackedObjs)
+        trackedObjs->reserve(trackedObjs->size() + count);
+
+    WorldTileManager* pTileManager = GetTileManager();
+
+    for (uint32 i = 0; i < count; ++i)
+    {
+        TileInfo* pTile = pTileManager->GetRandomEmptyTileOnGround(80, false);
+        if (!pTile)
+            pTile = pTileManager->GetRandomEmptyTile(80, false);
+        if (!pTile)
+            pTile = pTileManager->GetRandomTileThatIsntBorder();
+
+        if (!pTile)
+            continue;
+
+        int32 dropItemID = itemID;
+        int32 dropCount = 1;
+
+        if (itemID == ITEM_ID_ANTIMATTER_DUST)
+        {
+            if (RandomRangeFloat(0, 110) < 3.0f)
+                dropItemID = ITEM_ID_ANTIMATTER_DUST;
+        }
+
+        DropObjectOnTile(pTile, dropItemID, dropCount, GetRandomItemDropOffset(), true, INVENTORY_FLAG_NEVER_PICKED_UP);
+        if (trackedObjs)
+        {
+            trackedObjs->push_back(GetObjectManager()->GetLastObjectID());
+        }
+    }
 }
 
 std::vector<uint32> World::GetRequiredPresenceUserIDs()
@@ -4040,7 +4224,7 @@ void World::RecalculateWorldVersionBounds()
 
 void World::DropObject(const WorldObject& obj)
 {
-    DropObject(obj.itemID, obj.count, obj.pos);
+    DropObject(obj.itemID, obj.count, obj.pos, (eInventoryFlags)obj.flags);
 }
 
 void World::RemoveObject(uint32 objectID)

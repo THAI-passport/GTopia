@@ -30,7 +30,7 @@ void WorldManager::HandleWorldInit(TCPPacketReader& reader)
     uint32 instanceID = 0;
     uint32 databaseID = 0;
 
-    if (!reader.ReadString(worldName) || !reader.Read<uint32>(instanceID) || !reader.Read<uint32>(databaseID))
+    if (!reader.ReadString(worldName) || !reader.Read(instanceID) || !reader.Read(databaseID))
         return;
 
     World* pWorld = new World();
@@ -68,8 +68,53 @@ void WorldManager::StartWorldLoad(World* pWorld)
 
         GetGamePresenceManager()->RequestPresenceForWorld(pWorld->GetInstanceID(), presenceUserIDs);
         LOGGER_LOG_DEBUG("World %s is waiting for %d presence snapshots before going READY.",
-                         pWorld->GetWorlName().c_str(), (int32)presenceUserIDs.size());
+                         pWorld->GetWorldName().c_str(), (int32)presenceUserIDs.size());
     }
+}
+
+string WorldManager::WorldBalancerSelectBestActiveWorld(const string& worldName)
+{
+    WorldBalanceConfigSchema* pConfig = GetBalancedWorldConfig(worldName);
+    if (!pConfig)
+        return "START";
+
+    if (pConfig->keepExactId)
+        return BalancedWorldName(worldName);
+
+    string bestWorldName;
+    int32 minPlayerCount = 99999;
+
+    int32 targetCapacityLimit = (pConfig->maxInstance, GetContext()->GetGameConfig()->worldMaxPlayerCount - 10);
+    if (targetCapacityLimit <= 0)
+        targetCapacityLimit = 1;
+
+    for (auto& [_, pWorld] : m_worlds)
+    {
+        if (!pWorld)
+            continue;
+
+        uint32 worldSetID = GetBalancedWorldID(pWorld->GetWorldName());
+        if (worldSetID != pConfig->id)
+            continue;
+
+        uint32 currentPlayerCount = pWorld->GetPlayerCount();
+        if (currentPlayerCount >= targetCapacityLimit)
+            continue;
+
+        if (currentPlayerCount < minPlayerCount)
+        {
+            minPlayerCount = currentPlayerCount;
+            bestWorldName = pWorld->GetWorldName();
+
+            if (minPlayerCount == 0)
+                break;
+        }
+    }
+
+    if (!bestWorldName.empty())
+        return bestWorldName;
+
+    return "START";
 }
 
 void WorldManager::Kill()
@@ -187,13 +232,6 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
         return;
     }
 
-    /*if (pPlayer->GetCurrentWorld() == 0 && (targetWorldName.find('_') != string::npos || targetWorldName.find(' ') !=
-    string::npos))
-    {
-        pPlayer->SendOnConsoleMessage("Sorry, spaces and special characters are not allowed in world or door names. Try
-    again."); pPlayer->SendOnFailedToEnterWorld();
-    }*/
-
     if (targetWorldName == "EXIT")
     {
         if (pPlayer->GetCurrentWorld() == 0)
@@ -215,6 +253,11 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
 
     string doorID = (targetWorld.size() > 1 ? targetWorld[1] : "");
     StripWhiteSpace(doorID);
+
+    if (GetBalancedWorldID(targetWorldName) != 0)
+    {
+        doorID = "";
+    }
 
     World* pWorld = GetWorldByName(targetWorldName);
     if (!pWorld)
@@ -247,6 +290,8 @@ void WorldManager::PlayerJoinRequest(GamePlayer* pPlayer, const string& worldNam
         return;
     }
 
+    // players gonna overload the server
+    // make that tcp request
     if (pWorld->GetPlayerCount() >= GetContext()->GetGameConfig()->worldMaxPlayerCount)
     {
         pPlayer->SendOnConsoleMessage("Oops, `5" + targetWorldName + "`` already has `4" +
@@ -265,8 +310,6 @@ void WorldManager::UpdateWorlds()
         return;
 
     std::vector<uint32> deleteList;
-    deleteList.reserve(m_worlds.size());
-
     for (auto& [worldID, pWorld] : m_worlds)
     {
         if (!pWorld)
@@ -296,8 +339,20 @@ void WorldManager::UpdateWorlds()
             SAFE_DELETE(it->second);
         }
 
-        m_worldNameCache.erase(ToLower(it->second->GetWorlName()));
+        m_worldNameCache.erase(ToLower(it->second->GetWorldName()));
         m_worlds.erase(it);
+    }
+
+    GameConfig* pGameConfig = GetContext()->GetGameConfig();
+    if (m_worlds.size() >= pGameConfig->fossilSpawnMinWorldCount &&
+        m_fossilSpawnTimer.GetElapsedTime() >= (pGameConfig->fossilSpawnSeconds * 1000))
+    {
+        World* pRandomWorld = GetRandomWorld();
+        if (pRandomWorld && pRandomWorld->GetTileManager()->TryToFossilRandomRock())
+        {
+            LOGGER_LOG_INFO("[Fossil] Spawned fossil at world %s", pRandomWorld->GetWorldName().c_str());
+        }
+        m_fossilSpawnTimer.Reset();
     }
 
     UpdatePendingLoadWorlds();
@@ -320,12 +375,7 @@ void WorldManager::UpdatePendingLoadWorlds()
             continue;
 
         loadedOne = true;
-
-        if (!pWorld->InitWorld())
-        {
-            pWorld->GenerateWorld(WORLD_GENERATION_DEFAULT);
-            pWorld->SaveToDatabase();
-        }
+        pWorld->InitWorld();
     }
 }
 
@@ -363,6 +413,12 @@ World* WorldManager::GetWorldByDatabaseID(uint32 databaseID)
     return nullptr;
 }
 
+World* WorldManager::GetRandomWorld()
+{
+    auto it = std::next(m_worlds.begin(), RandomRangeInt(0, m_worlds.size() - 1));
+    return it->second;
+}
+
 World* WorldManager::GetWorldByInstanceID(uint32 instanceID)
 {
     if (instanceID == 0)
@@ -392,7 +448,7 @@ void WorldManager::AddWorld(World* pWorld)
     }
 
     m_worlds.insert_or_assign(instanceID, pWorld);
-    m_worldNameCache[ToUpper(pWorld->GetWorlName())] = instanceID;
+    m_worldNameCache[ToUpper(pWorld->GetWorldName())] = instanceID;
 }
 
 void WorldManager::OnPlayerJoinRequest(GamePlayer* pPlayer, World* pWorld)
@@ -483,6 +539,17 @@ void WorldManager::SendWorldMenuRequest(GamePlayer* pPlayer)
     if (!pPlayer)
         return;
 
+    if (pPlayer->GetLoginDetail().loginMode != LOGON_MODE_TRANSFER)
+    {
+        GameConfig* pGameConfig = GetContext()->GetGameConfig();
+        if (!pGameConfig->gameNews.empty())
+        {
+            pPlayer->SendOnDialogRequest(pGameConfig->gameNews, 1000);
+        }
+        pPlayer->GetLoginDetail().loginMode = LOGON_MODE_TRANSFER;
+    }
+
+    GameConfig* pGameConfig = GetContext()->GetGameConfig();
     GamePresenceManager* pPresenceMgr = GetGamePresenceManager();
 
     if (m_worldListCacheTimer.GetElapsedTime() >= 15000 || m_cachedPopularWorldList.empty())
@@ -497,7 +564,7 @@ void WorldManager::SendWorldMenuRequest(GamePlayer* pPlayer)
         for (int32 i = 0; i < popularTargetCount; ++i)
         {
             auto* pPresence = pPresenceMgr->GetWorldPresenceDataByIndex(i);
-            if (!pPresence || pPresence->isSignalJammed)
+            if (!pPresence || (pGameConfig->filterJammedWorlds && pPresence->isSignalJammed))
                 continue;
 
             WorldListElement item;
@@ -513,7 +580,7 @@ void WorldManager::SendWorldMenuRequest(GamePlayer* pPlayer)
         for (int32 i = 0; i < randomTargetCount; ++i)
         {
             auto* pPresence = pPresenceMgr->GetRandomWorldPresenceData(popularTargetCount);
-            if (!pPresence || pPresence->isSignalJammed)
+            if (!pPresence || (pGameConfig->filterJammedWorlds && pPresence->isSignalJammed))
                 continue;
 
             WorldListElement item;

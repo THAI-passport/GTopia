@@ -24,3 +24,6 @@ skip_ip_check|0
 
 add_account|Developer|developer_node|mypass123|4|
 allow_ip|127.0.0.1|
+
+# add_discord|Discord Bot 1|discord_bot|secDisP4ssw0rd|4|
+# allow_ip|127.0.0.1|

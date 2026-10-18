@@ -8,11 +8,13 @@ class GamePlayer;
 
 enum ePlayerExtraKey : uint16
 {
-    PLAYER_EXTRA_BILLBOARD_ITEM_ID,
+    PLAYER_EXTRA_BILLBOARD_ITEM_ID = 0,
     PLAYER_EXTRA_BILLBOARD_SHOW,
     PLAYER_EXTRA_BILLBOARD_PRICE,
     PLAYER_EXTRA_BILLBOARD_IS_LOCK_PER,
-    PLAYER_EXTRA_BILLBOARD_IS_BUY
+    PLAYER_EXTRA_BILLBOARD_IS_BUY,
+
+    PLAYER_EXTRA_COUNT
 };
 
 class PlayerExtraData
@@ -24,21 +26,16 @@ public:
 public:
     bool Set(ePlayerExtraKey key, const Variant& data);
 
-    template <typename T, typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, Variant>>>
-    bool Set(ePlayerExtraKey key, T&& value)
-    {
-        return Set(key, Variant(std::forward<T>(value)));
-    }
+    const Variant& Get(ePlayerExtraKey key) const;
+    bool Has(ePlayerExtraKey key) const;
 
-    Variant& Get(ePlayerExtraKey key);
+    void Clear(ePlayerExtraKey key);
+    void ClearAll();
 
     void Serialize(MemoryBuffer& memBuffer, bool write);
-    uint32 GetMemEstimate();
-
-private:
-    eVariantTypes GetExpectedTypeForKey(ePlayerExtraKey key);
+    uint32 GetMemEstimate() const;
 
 private:
     GamePlayer* m_pPlayer;
-    VariantMap<uint16> m_data;
+    std::vector<Variant> m_data;
 };

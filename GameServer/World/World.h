@@ -36,6 +36,7 @@ public:
     void OnSuckerBlockAdded(TileInfo* pTile) override;
     void OnSuckerBlockRemoved(TileInfo* pTile) override;
 
+    uint16 GetCurrentWeather() const override;
     void GenerateWorld(eWorldGenerationType type) override;
 
 public:
@@ -88,7 +89,7 @@ public:
     // void SendParticleEffectV2ToAll(const Vector2Float& pos, int32 delayMs = 0, float angle = 0.0f);
     void SendHarvestTreeToAll(TileInfo* pTile, GamePlayer* pPlayer);
     void PlaySFXForEveryone(const string& fileName, int32 delay = -1);
-    void SendPlayPositionedToAll(GamePlayer* pPlayer, const string& audio);
+    void SendPlayPositionedToAll(GamePlayer* pPlayer, const string& audio, int32 delay = -1);
     void SendOnActionToAll(GamePlayer* pPlayer, const string& action);
     void SendOnAddNotificationToAll(const string& image, const string& message, const string& audio, bool isTip);
     void SendOnCountryStateToAll(GamePlayer* pPlayer);
@@ -110,6 +111,7 @@ public:
     void ThrowItemToPositionFromPlayer(GamePlayer* pPlayer, const Vector2Float& pos, int32 itemID, int32 count);
     void ThrowItemToPositionFromToPosition(const Vector2Float& srcPos, const Vector2Float& destPos, int32 itemID,
                                            int32 count);
+    void ThrowItemToPlayerToPlayer(GamePlayer* pFrom, GamePlayer* pTarget, int32 itemID, int32 count);
 
     uint32 PathfindCalcDistance(TileInfo* pNode, TileInfo* pStart, TileInfo* pGoal);
     int32 PathfindGetShortestOpenTile(TileInfo* pStart, TileInfo* pGoal, std::vector<TileInfo*>& openList);
@@ -160,15 +162,20 @@ public:
     GamePlayer* GetPlayerByNameStartsWith(const string& name, string& errorMsg);
 
     void DropGemsOnTile(TileInfo* pTile, uint32 gemCount);
-    void DropObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const Vector2Float& offset, bool merge);
-    void DropOrSuckObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const Vector2Float& offset, bool merge);
-    void DropObject(int16 itemID, uint8 count, const Vector2Float& pos);
+    void DropObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const Vector2Float& offset, bool merge,
+                          eInventoryFlags flags = INVENTORY_FLAG_NONE);
+    void DropOrSuckObjectOnTile(TileInfo* pTile, int16 itemID, uint8 count, const Vector2Float& offset, bool merge,
+                                eInventoryFlags flags = INVENTORY_FLAG_NONE);
+    void DropObject(int16 itemID, uint8 count, const Vector2Float& pos, eInventoryFlags flags = INVENTORY_FLAG_NONE);
+    void DropRandomObjectOnGround(int16 itemID, uint32 count, std::vector<uint32>* trackedObjs = nullptr);
 
     void SendCurrentWeatherToAll();
     uint32 GetPlayerCount() const { return m_players.size(); }
     int32 GetBalancerType() const { return m_balancerType; }
     Timer& GetLastSaveTime() { return m_worldLastSaveTime; }
     Timer& GetOfflineTime() { return m_worldOfflineTime; }
+
+    std::vector<GamePlayer*>& GetPlayers() { return m_players; }
 
     std::vector<uint32> GetRequiredPresenceUserIDs();
     std::vector<uint32> GetActivePresenceUserIDs();

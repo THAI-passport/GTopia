@@ -10,20 +10,13 @@
 #include "WorldRenderer.h"
 #include "WorldRendererManager.h"
 
-/**
- *
- * RE DO IT :(
- * also it has high mem usage than other servers lol
- *
- */
-
 bool firstCallShutdown = false;
 
 bool ReadArgs(int argc, char const* argv[])
 {
     bool idSet = false;
 
-    for (int i = 1; i < argc; ++i)
+    for (int32 i = 1; i < argc; ++i)
     {
         if (string(argv[i]) == "--id")
         {
@@ -67,12 +60,12 @@ int main(int argc, char const* argv[])
 
     if (!GetLog()->InitFile(GetProgramPath() + "/logs/log_SERVER_" + ToString(GetContext()->GetID()) + ".txt"))
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to init log file, maybe try to create 'logs' folder?");
+        LOGGER_LOG_ERROR_FLUSH("Failed to init log file, maybe try to create 'logs' folder?");
         return 0;
     }
 
-    LOGGER_LOG_INFO_ASAP("Starting renderer server %d", GetContext()->GetID());
-    LOGGER_LOG_INFO_ASAP("Project created by keichira https://github.com/keichira/GTopia");
+    LOGGER_LOG_INFO_FLUSH("Starting renderer server %d", GetContext()->GetID());
+    LOGGER_LOG_INFO_FLUSH("Project created by keichira https://github.com/keichira/GTopia");
     GetContext()->Init();
 
     SetRandomSeed(Time::GetSystemTime());
@@ -81,20 +74,20 @@ int main(int argc, char const* argv[])
     GameConfig* pGameConfig = GetContext()->GetGameConfig();
     if (pGameConfig->LoadServersClient(GetProgramPath() + "/servers.txt", GetContext()->GetID()) != 2)
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to load servers.txt");
+        LOGGER_LOG_ERROR_FLUSH("Failed to load servers.txt");
         return 0;
     }
 
     if (pGameConfig->servers[1].serverType != CONFIG_SERVER_RENDERER)
     {
-        LOGGER_LOG_ERROR_ASAP("Woops trying to run server with wrong type %d it should be renderer",
-                              pGameConfig->servers[1].serverType);
+        LOGGER_LOG_ERROR_FLUSH("Woops trying to run server with wrong type %d it should be renderer",
+                               pGameConfig->servers[1].serverType);
         return 0;
     }
 
     if (!pGameConfig->LoadConfig(GetProgramPath() + "/config.txt"))
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to load config.txt");
+        LOGGER_LOG_ERROR_FLUSH("Failed to load config.txt");
         return 0;
     }
 
@@ -106,33 +99,35 @@ int main(int argc, char const* argv[])
 
     ResourceManager* pResMgr = GetResourceManager();
     pResMgr->SetResourcePath(pGameConfig->rendererStaticPath);
+    GetContext()->LoadPreResources();
 
-    GetDiscordWebhookManager()->RegisterFromConfig(pGameConfig->discordWebhooks, CONFIG_SERVER_RENDERER);
+    GetDiscordWebhookManager()->SetGameConfig(GetContext()->GetGameConfig());
+    GetDiscordWebhookManager()->RegisterFromConfig(CONFIG_SERVER_RENDERER);
     LOGGER_LOG_INFO("Registered %d Discord webhooks.", GetDiscordWebhookManager()->GetWebhookCount());
+
+    if (!GetItemInfoManager()->Load(GetProgramPath() + "/items.txt"))
+    {
+        LOGGER_LOG_ERROR_FLUSH("Failed to load items.txt");
+        return 0;
+    }
 
     auto renderServerInfo = pGameConfig->servers[1];
     if (!GetMasterBroadway()->Init(renderServerInfo.lanIP, renderServerInfo.tcpPort, 0))
     {
-        LOGGER_LOG_ERROR_ASAP("Failed to initialize netsocket on %s:%d", renderServerInfo.lanIP.c_str(),
-                              renderServerInfo.tcpPort);
+        LOGGER_LOG_ERROR_FLUSH("Failed to initialize netsocket on %s:%d", renderServerInfo.lanIP.c_str(),
+                               renderServerInfo.tcpPort);
         return 0;
     }
     LOGGER_LOG_INFO("Started netsocket on %s:%d", renderServerInfo.lanIP.c_str(), renderServerInfo.tcpPort);
 
     auto masterServerInfo = pGameConfig->servers[0];
-    LOGGER_LOG_INFO_ASAP("Connecting and Authenticating with Master Server...");
+    LOGGER_LOG_INFO_FLUSH("Connecting and Authenticating with Master Server...");
 
     if (!GetMasterBroadway()->ConnectAndAuth(masterServerInfo.lanIP, masterServerInfo.tcpPort, 3,
                                              GetContext()->GetShutdownFlag()))
     {
-        LOGGER_LOG_ERROR_ASAP("Master Server connection or authentication failed. Aborting startup.");
+        LOGGER_LOG_ERROR_FLUSH("Master Server connection or authentication failed. Aborting startup.");
         GetMasterBroadway()->Kill();
-        return 0;
-    }
-
-    if (!GetItemInfoManager()->Load(GetProgramPath() + "/items.txt"))
-    {
-        LOGGER_LOG_ERROR_ASAP("Failed to load items.txt");
         return 0;
     }
 

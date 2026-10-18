@@ -53,6 +53,7 @@ public:
     void SetFG(int16 itemID, WorldTileManager* pTileMgr);
     void SetBG(int16 itemID, WorldTileManager* pTileMgr);
     bool IsCollidable();
+    bool IsSolid();
 
     void BindTileData(TempTileData* pTileData);
 

@@ -169,14 +169,15 @@ enum eTileExtraFlags
 
 static const std::unordered_map<uint8, TileVersionBounds> sTileVersionBounds = {
     {TILE_EXTRA_TYPE_LOCK, {11, 12, {11, 12}}},
-    {TILE_EXTRA_TYPE_MANNEQUIN, {0, 3, {0, 3}}}
+    {TILE_EXTRA_TYPE_MANNEQUIN, {0, 3, {0, 3}}},
+    {TILE_EXTRA_TYPE_BEDROCK, {18, 19, {18, 19}}}
 };
 
 const TileVersionBounds& GetTileVersionBounds(uint8 extraType);
 uint16 GetTileEquivalenceVersion(uint8 extraType, uint16 playerVersion);
 float GetTileExtraMinGameVersion(uint8 extraType);
 
-uint8 GetTileExtraTypeByItemType(uint8 itemType);
+uint8 GetTileExtraTypeByItem(int32 itemID, uint8 itemType);
 TileExtra* CreateTileExtra(uint8 extraType);
 
 class TileInfo;
@@ -580,4 +581,25 @@ TILE_EXTRA(TileExtra_Sucker, TILE_EXTRA_TYPE_SUCKER)
     uint8 isSucking = 1;
     uint8 isPlanting = 0;
     int32 unk = 0;
+};
+
+// temp, for to speed up also world importing also ghost saving
+// gonna check others later(or never)
+TILE_EXTRA(TileExtra_Bedrock, TILE_EXTRA_TYPE_BEDROCK)
+    uint8 unk0 = 0;
+
+    uint8 unk1 = 0;
+
+    int32 unk2 = 0;
+    int32 unk3 = 0;
+    int32 unk4 = 0;
+
+    int32 unk5 = 0;
+
+    int32 unk6 = 0;
+    int32 unk7 = 0;
+    int32 unk8 = 0;
+
+    int32 unk9 = 0;
+    uint32 unk10 = 0;
 };

@@ -26,7 +26,7 @@ void ItemActivateRequest::Execute(GamePlayer* pPlayer, World* pWorld, GameUpdate
         return;
     }
 
-    if (pItem->type == ITEM_TYPE_CLOTHES)
+    if (pItem->type == ITEM_TYPE_CLOTHES || pItem->type == ITEM_TYPE_ARTIFACT)
     {
         pPlayer->ToggleCloth(pPacket->field_7);
         return;

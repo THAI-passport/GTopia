@@ -291,6 +291,21 @@ void GameServer::Update()
     }
 }
 
+void GameServer::LockUserID(uint32 userID)
+{
+    m_lockedUserIDs.insert(userID);
+}
+
+void GameServer::UnLockUserID(uint32 userID)
+{
+    m_lockedUserIDs.erase(userID);
+}
+
+bool GameServer::IsUserLocked(uint32 userID)
+{
+    return m_lockedUserIDs.find(userID) != m_lockedUserIDs.end();
+}
+
 GameServer* GetGameServer()
 {
     return GameServer::GetInstance();

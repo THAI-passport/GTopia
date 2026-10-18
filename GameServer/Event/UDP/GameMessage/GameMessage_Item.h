@@ -8,3 +8,4 @@ void GameMessage_Trash(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
 void GameMessage_RefreshItemData(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
 void GameMessage_Buy(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
 void GameMessage_Store(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);
+void GameMessage_Info(GamePlayer* pPlayer, ParsedTextPacket<38>& packet);

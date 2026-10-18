@@ -16,3 +16,19 @@ Runtime/*
 !Runtime/*.sh
 !Runtime/*.ps1
 !Runtime/admin_client_config.txt
+
+*.json
+
+# go.gitignore
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.out
+coverage.*
+!coverage.go
+*.coverprofile
+profile.cov
+go.work
+go.work.sum

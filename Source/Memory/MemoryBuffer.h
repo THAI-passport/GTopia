@@ -6,8 +6,7 @@ class MemoryBuffer
 {
 public:
     MemoryBuffer();
-
-    explicit MemoryBuffer(uint32 size);
+    MemoryBuffer(uint32 size);
 
     MemoryBuffer(void* pData, uint32 size);
     MemoryBuffer(const void* pData, uint32 size);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Utils/GameConfig.h"
+#include "../Utils/JSON.h"
 #include "NetHTTP.h"
 #include <ctime>
 
@@ -85,8 +86,9 @@ public:
     string GetLastResponse() const { return m_lastResponse; }
     uint16 GetLastStatus() const { return m_lastStatus; }
 
+    static JSON BuildEmbedJSON(const DiscordEmbed& embed);
+
 private:
-    string EscapeJSON(const string& str);
     string BuildJSONPayload();
     string BuildMultipartPayload(const string& boundary);
 
@@ -123,15 +125,17 @@ public:
 public:
     void Kill();
 
-    void RegisterFromConfig(std::vector<DiscordWebhookConfigSchema>& webhooks, eConfigServerType serverType);
+    void RegisterFromConfig(eConfigServerType serverType);
 
     bool Register(const string& customID, const string& webhookUrl);
     DiscordWebhook* GetWebhook(const string& customID);
 
     uint32 GetWebhookCount() { return m_webhooks.size(); }
+    void SetGameConfig(GameConfig* pConfig) { m_pGameConfig = pConfig; }
 
 private:
     std::unordered_map<string, DiscordWebhook*> m_webhooks;
+    GameConfig* m_pGameConfig;
 };
 
 DiscordWebhookManager* GetDiscordWebhookManager();

@@ -118,6 +118,7 @@ static void PosixSignalHandler(int signalNumber)
     {
         case SIGINT:
         case SIGTERM:
+        case SIGHUP:
         {
             volatile sig_atomic_t* shutdownFlag = sShutdownFlag.load(std::memory_order_relaxed);
             if (shutdownFlag)
@@ -142,6 +143,7 @@ void SystemSignal::RegisterShutdownHook(volatile sig_atomic_t* shutdownFlag)
 
     sigaction(SIGINT, &sa, nullptr);
     sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGHUP, &sa, nullptr);
 }
 
 void SystemSignal::SignalShutdownComplete() {}

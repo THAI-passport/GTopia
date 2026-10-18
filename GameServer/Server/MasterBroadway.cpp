@@ -29,6 +29,9 @@ void MasterBroadway::RegisterEvents()
     RegisterEvent<TCPEvent_KillServer>(TCP_PACKET_KILL_SERVER);
     RegisterEvent<TCPEvent_HeartBeat>(TCP_PACKET_HEARTBEAT);
     RegisterEvent<TCPEvent_Command>(TCP_PACKET_COMMAND);
+    RegisterEvent<TCPEvent_StatsUpdate>(TCP_PACKET_STATS_UPDATE);
+    RegisterEvent<TCPEvent_HolidaySync>(TCP_PACKET_HOLIDAY_SYNC);
+    RegisterEvent<TCPEvent_ReloadFile>(TCP_PACKET_RELOAD_FILE);
 }
 
 void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
@@ -43,14 +46,14 @@ void MasterBroadway::UpdateTCPLogic(uint64 maxTimeMS)
 
         uint16 packetID = event.header.packetID;
 
-        if (packetID != TCP_PACKET_HEARTBEAT)
+        if (packetID != TCP_PACKET_HEARTBEAT && packetID != TCP_PACKET_STATS_UPDATE)
         {
             LOGGER_LOG_DEBUG("Received TCP Packet %d (Size: %u)", packetID, event.header.bodySize);
         }
 
         TCPPacketReader reader(event.payload.data(), (uint32)(event.payload.size()));
 
-        if (packetID == TCP_PACKET_PLAYER_SUBSCRIBE || packetID == TCP_PACKET_PLAYER_UNSUBSCRIBE ||
+        if (packetID == TCP_PACKET_PLAYER_SNAPSHOT || packetID == TCP_PACKET_PLAYER_UPDATE ||
             packetID == TCP_PACKET_WORLD_SNAPSHOT || packetID == TCP_PACKET_WORLD_UPDATE ||
             packetID == TCP_PACKET_WORLD_REMOVE)
         {
@@ -236,12 +239,12 @@ void MasterBroadway::SendPlayerPresenceUnsubscribe(const std::vector<uint32>& us
 
 void MasterBroadway::SendWorldPresenceRemove(const std::vector<WorldPresenceRemoveElement>& removeElems)
 {
-    SendArray(TCP_PACKET_WORLD_REMOVE, removeElems);
+    SendPresenceArray(TCP_PACKET_WORLD_REMOVE, removeElems);
 }
 
 void MasterBroadway::SendWorldPresenceUpdate(const std::vector<WorldPresenceUpdateElement>& updateElems)
 {
-    SendArray(TCP_PACKET_WORLD_UPDATE, updateElems);
+    SendPresenceArray(TCP_PACKET_WORLD_UPDATE, updateElems);
 }
 
 void MasterBroadway::SendCommandBroadcastMessage(const string& message, const string& worldName, const string& audio)
@@ -255,6 +258,50 @@ void MasterBroadway::SendCommandBroadcastMessage(const string& message, const st
     writer.WriteString(worldName);
     writer.WriteString(audio);
 
+    m_pNetClient->Send(writer);
+}
+
+void MasterBroadway::SendCommandGenericResponse(uint64 reqID, bool succeed, const string& msg)
+{
+    if (!m_pNetClient)
+        return;
+
+    TCPPacketWriter writer(TCP_PACKET_COMMAND);
+    writer.Write<int32>(TCP_COMMAND_GENERIC_RESPONSE);
+    writer.Write(reqID);
+    writer.Write((uint8)(succeed ? 1 : 0));
+    writer.WriteString(msg);
+
+    m_pNetClient->Send(writer);
+}
+
+void MasterBroadway::SendCommandExecuteText(uint32 userID, const string& cmd)
+{
+    if (!m_pNetClient)
+        return;
+
+    TCPPacketWriter writer(TCP_PACKET_COMMAND);
+    writer.Write<int32>(TCP_COMMAND_EXECUTE_TEXT);
+    writer.Write(userID);
+    writer.WriteString(cmd);
+
+    m_pNetClient->Send(writer);
+}
+
+void MasterBroadway::SendPacketRaw(TCPPacketWriter& writer)
+{
+    if (!m_pNetClient)
+        return;
+
+    m_pNetClient->Send(writer);
+}
+
+void MasterBroadway::SendReadyPacket()
+{
+    if (!m_pNetClient)
+        return;
+
+    TCPPacketWriter writer(TCP_PACKET_READY);
     m_pNetClient->Send(writer);
 }
 

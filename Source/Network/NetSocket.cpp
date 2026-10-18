@@ -104,6 +104,11 @@ bool NetSocket::Init(const string& host, uint16 port, int32 backLog)
     setsockopt(m_socket, SOL_SOCKET, SO_LINGER, (const char*)&lin, sizeof(lin));
 #endif
 
+#ifdef __APPLE__
+    int set = 1;
+    setsockopt(m_socket, SOL_SOCKET, SO_NOSIGPIPE, (void*)&set, sizeof(set));
+#endif
+
     sockaddr_in sockAddr{};
     sockAddr.sin_family = AF_INET;
     sockAddr.sin_port = htons(port);
@@ -409,14 +414,14 @@ void NetSocket::Update(bool asClient)
             continue;
         }
 
-        if (revents & POLLIN)
-        {
-            HandleReadIO(pClient);
-        }
-
         if (revents & POLLOUT && pClient->status != SOCKET_CLIENT_CLOSE)
         {
             HandleWriteIO(pClient);
+        }
+
+        if (revents & POLLIN && pClient->status != SOCKET_CLIENT_CLOSE)
+        {
+            HandleReadIO(pClient);
         }
     }
 

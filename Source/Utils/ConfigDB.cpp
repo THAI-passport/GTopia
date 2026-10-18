@@ -64,7 +64,8 @@ bool ConfigLine::Require(int32 index) const
     {
         if (dbParent)
         {
-            dbParent->ReportError(*this, "Expected " + ToString(index + 1) + " args but found " + ToString(args.size()) + " args");
+            dbParent->ReportError(*this, "Expected " + ToString(index + 1) + " args but found " +
+                                             ToString(args.size()) + " args");
         }
         return false;
     }
@@ -91,12 +92,12 @@ bool ConfigDB::Load(const string& filePath)
     if (filePath.empty())
         return false;
 
-    LOGGER_LOG_INFO_ASAP("ConfigDB: Loading file '%s'", filePath.c_str());
+    LOGGER_LOG_INFO_FLUSH("ConfigDB: Loading file '%s'", filePath.c_str());
 
     File file;
     if (!file.Open(filePath))
     {
-        LOGGER_LOG_ERROR_ASAP("ConfigDB: Failed to open file '%s'", filePath.c_str());
+        LOGGER_LOG_ERROR_FLUSH("ConfigDB: Failed to open file '%s'", filePath.c_str());
         return false;
     }
 
@@ -106,7 +107,7 @@ bool ConfigDB::Load(const string& filePath)
     if (file.Read(data.data(), file.GetSize()) != file.GetSize())
     {
         file.Close();
-        LOGGER_LOG_ERROR_ASAP("ConfigDB: Failed to read '%s'", filePath.c_str());
+        LOGGER_LOG_ERROR_FLUSH("ConfigDB: Failed to read '%s'", filePath.c_str());
         return false;
     }
     file.Close();
@@ -132,11 +133,11 @@ bool ConfigDB::Load(const string& filePath)
     }
 
     m_fileName = GetFileNameFromPath(filePath);
-    LOGGER_LOG_INFO_ASAP("ConfigDB: Successfully loaded '%s' (%d lines)", filePath.c_str(), m_lines.size());
+    LOGGER_LOG_INFO_FLUSH("ConfigDB: Successfully loaded '%s' (%d lines)", filePath.c_str(), m_lines.size());
     return true;
 }
 
 void ConfigDB::ReportError(const ConfigLine& line, const string& msg)
 {
-    LOGGER_LOG_ERROR_ASAP("ConfigDB: Error in '%s' (line %d), %s", m_fileName.c_str(), line.lineNumber, msg.c_str());
+    LOGGER_LOG_ERROR_FLUSH("ConfigDB: Error in '%s' (line %d), %s", m_fileName.c_str(), line.lineNumber, msg.c_str());
 }

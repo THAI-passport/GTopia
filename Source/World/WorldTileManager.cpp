@@ -63,9 +63,7 @@ bool WorldTileManager::Serialize(MemoryBuffer& memBuffer, bool write, bool datab
                 TileInfo* pTile = &m_tiles[i];
 
                 if (!pTile->HasFlag(TILE_FLAG_HAS_EXTRA_DATA) && !pTile->HasFlag(TILE_FLAG_HAS_PARENT))
-                {
                     continue;
-                }
 
                 extraCount++;
                 memBuffer.Write(i);
@@ -195,24 +193,39 @@ uint32 WorldTileManager::GetMemEstimate(bool database, WorldInfo* pWorld, int16 
 
 void WorldTileManager::Clear(bool reInit)
 {
-    m_tiles.clear();
-    m_keyTiles.clear();
+    m_lockCount = 0;
+    m_negativeItemCount = 0;
+
+    m_keyTiles.assign(KEY_TILE_SIZE, nullptr);
     m_onFireTiles.clear();
-    m_tempTiles.clear();
+    m_heartMonitors.clear();
+    m_powerNodes.clear();
+    m_powerNodeGroups.clear();
+    m_nodeToGroup.clear();
 
     if (reInit)
     {
-        m_tiles.resize(m_size.x * m_size.y);
-        m_tempTiles.resize(m_size.x * m_size.y);
-        m_keyTiles.resize(KEY_TILE_SIZE, nullptr);
-        m_tempTiles.resize(m_size.x * m_size.y);
-
-        for (uint32 i = 0; i < m_tiles.size(); ++i)
+        uint32 totalTiles = (uint32)(m_size.x * m_size.y);
+        m_tempTiles.resize(totalTiles);
+        if (totalTiles > 0)
         {
-            m_tiles[i].BindTileData(&m_tempTiles[i]);
-            m_tiles[i].SetPos(i % m_size.x, i / m_size.x);
-            m_tiles[i].SetMapIndex(i);
+            memset(m_tempTiles.data(), 0, totalTiles * sizeof(TempTileData));
         }
+
+        m_tiles.assign(totalTiles, TileInfo());
+
+        for (uint32 i = 0; i < totalTiles; ++i)
+        {
+            TileInfo& tile = m_tiles[i];
+            tile.BindTileData(&m_tempTiles[i]);
+            tile.SetPos(i % m_size.x, i / m_size.x);
+            tile.SetMapIndex(i);
+        }
+    }
+    else
+    {
+        m_tiles.clear();
+        m_tempTiles.clear();
     }
 }
 
@@ -363,6 +376,78 @@ TileInfo* WorldTileManager::GetTileInfoByItemID(int32 itemID, int32 startIndex)
     }
 
     return nullptr;
+}
+
+TileInfo* WorldTileManager::GetRandomEmptyTileOnGround(uint32 maxAttempts, bool checkIfFgEmpty)
+{
+    for (uint32 i = 0; i < maxAttempts; ++i)
+    {
+        int32 randomX = RandomRangeInt(0, m_size.x - 1);
+        int32 randomY = RandomRangeInt(0, m_size.y - 2);
+
+        TileInfo* pTile = GetTile(randomX, randomY);
+        if (!pTile || pTile->IsCollidable())
+            continue;
+
+        TileInfo* pTileBelow = GetTile(randomX, randomY + 1);
+        if (!pTileBelow || !pTileBelow->IsCollidable())
+            continue;
+
+        if (!checkIfFgEmpty)
+            return pTile;
+
+        if (pTile->GetFG() == ITEM_ID_BLANK)
+            return pTile;
+    }
+
+    return nullptr;
+}
+
+TileInfo* WorldTileManager::GetRandomEmptyTile(int32 maxAttempts, bool checkIfFgEmpty)
+{
+    for (uint32 i = 0; i < maxAttempts; ++i)
+    {
+        int32 randomX = RandomRangeInt(0, m_size.x - 1);
+        int32 randomY = RandomRangeInt(0, m_size.y - 1);
+
+        TileInfo* pTile = GetTile(randomX, randomY);
+        if (!pTile || pTile->IsCollidable())
+            continue;
+
+        if (!checkIfFgEmpty)
+            return pTile;
+
+        if (pTile->GetFG() == ITEM_ID_BLANK)
+            return pTile;
+    }
+
+    return nullptr;
+}
+
+TileInfo* WorldTileManager::GetRandomTileThatIsntBorder()
+{
+    int32 randomX = RandomRangeInt(1, m_size.x - 2);
+    int32 randomY = RandomRangeInt(1, m_size.y - 2);
+
+    TileInfo* pTile = GetTile(randomX, randomY);
+
+    while (pTile && pTile->GetType() == ITEM_TYPE_BEDROCK)
+    {
+        Vector2Int& vTilePos = pTile->GetPos();
+        if (vTilePos.y <= 0)
+            break;
+
+        randomX = RandomRangeInt(1, vTilePos.x);
+        randomY = RandomRangeInt(1, vTilePos.y - 1);
+        pTile = GetTile(randomX, randomY);
+    }
+
+    if (pTile && pTile->GetType() != ITEM_TYPE_BEDROCK)
+        return pTile;
+
+    randomX = RandomRangeInt(1, m_size.x - 2);
+    randomY = RandomRangeInt(1, m_size.y - 2);
+    return GetTile(randomX, randomY);
 }
 
 int32 WorldTileManager::GetTileIndex(TileInfo* pTile)
@@ -541,7 +626,7 @@ void WorldTileManager::GenerateDefaultMap()
     pDoorTile->SetFG(ITEM_ID_MAIN_DOOR, this);
 
     TileInfo* pBedrockTile = GetTile(doorPosX, layer.top);
-    pBedrockTile->SetFG(ITEM_ID_BEDROCK, this);
+    pBedrockTile->SetFG(ITEM_ID_DATA_BEDROCK, this);
 }
 
 void WorldTileManager::GenerateClearMap()
@@ -728,6 +813,28 @@ TileInfo* WorldTileManager::GetTileByTypeFromRect(const RectFloat& rect, int32 i
     return nullptr;
 }
 
+bool WorldTileManager::TryToFossilRandomRock()
+{
+    std::vector<int32> rockTileIndexes;
+
+    for (auto& tile : m_tiles)
+    {
+        if (IsNormalRock(tile.GetFG()))
+            rockTileIndexes.push_back(tile.GetMapIndex());
+    }
+
+    if (rockTileIndexes.empty())
+        return false;
+
+    int32 randomRock = RandomRangeInt(0, rockTileIndexes.size() - 1);
+    TileInfo* pRandomRockTile = GetTile(rockTileIndexes[randomRock]);
+    if (!pRandomRockTile)
+        return false;
+
+    pRandomRockTile->SetFG(GetFossilVersionOfRock(pRandomRockTile->GetFG()), this);
+    return true;
+}
+
 std::vector<TileInfo*> WorldTileManager::RemoveTileParentsLockedBy(TileInfo* pLockTile)
 {
     std::vector<TileInfo*> unlockedTiles;
@@ -756,30 +863,20 @@ std::vector<TileInfo*> WorldTileManager::RemoveTileParentsLockedBy(TileInfo* pLo
 bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTargetTile, bool ignoreEmpty)
 {
     if (!pLockTile || !pTargetTile || pLockTile == pTargetTile)
-    {
         return false;
-    }
 
     if (pTargetTile->HasFlag(TILE_FLAG_HAS_PARENT) || pTargetTile->GetParent() != 0)
-    {
         return false;
-    }
 
     if (ignoreEmpty && pTargetTile->GetDisplayedItem() == ITEM_ID_BLANK)
-    {
         return false;
-    }
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTargetTile->GetDisplayedItem());
     if (!pItem)
-    {
         return false;
-    }
 
     if (pItem->type == ITEM_TYPE_LOCK || pItem->type == ITEM_TYPE_DOOR || pItem->type == ITEM_TYPE_BEDROCK)
-    {
         return false;
-    }
 
     int32 neighbors[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
     Vector2Int vTargetPos = pTargetTile->GetPos();
@@ -791,9 +888,7 @@ bool WorldTileManager::AbleToLockThisTile(TileInfo* pLockTile, TileInfo* pTarget
     {
         TileInfo* pNeighbor = GetTile(vTargetPos.x + neighbors[i][0], vTargetPos.y + neighbors[i][1]);
         if (!pNeighbor)
-        {
             continue;
-        }
 
         if (pNeighbor->GetParent() == parentIndex || pNeighbor == pLockTile ||
             (vTargetPos.x + neighbors[i][0] == vLockPos.x + neighbors[i][0] &&
@@ -810,9 +905,7 @@ bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock,
                                       std::vector<TileInfo*>& outTiles)
 {
     if (!pLockTile || tileSizeToLock > (m_size.x * m_size.y) || tileSizeToLock == 0)
-    {
         return false;
-    }
 
     RemoveTileParentsLockedBy(pLockTile);
 
@@ -834,14 +927,10 @@ bool WorldTileManager::ApplyLockTiles(TileInfo* pLockTile, int32 tileSizeToLock,
             {
                 TileInfo* pCurrTile = GetTile(x, y);
                 if (!pCurrTile || pCurrTile == pLockTile)
-                {
                     continue;
-                }
 
                 if (!AbleToLockThisTile(pLockTile, pCurrTile, ignoreEmpty))
-                {
                     continue;
-                }
 
                 int32 distance = Abs(x - vStartPos.x) + Abs(y - vStartPos.y);
                 if (!pClosestTile || distance < minDistance)
@@ -917,9 +1006,7 @@ Vector2Float WorldTileManager::GetMapStartWorldPos(const string& doorID)
     }
 
     if (TileInfo* pMainDoorTile = GetKeyTile(KEY_TILE_MAIN_DOOR))
-    {
         return pMainDoorTile->GetWorldPos();
-    }
 
     return Vector2Float(64, 64);
 }

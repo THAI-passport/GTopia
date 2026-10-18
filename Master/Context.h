@@ -10,13 +10,16 @@ static const uint32 DB_RESULT_BUDGET_MS = 10;
 static const uint32 MAX_CATCHUP_TICKS = 4;
 static const uint32 PERF_SAMPLE_INTERVAL_MS = 1000;
 
-class Context : public ContextBase {
+void ProcessDatabaseResults(uint64 maxTimeMS);
+
+class Context : public ContextBase
+{
 public:
     Context();
     ~Context();
 
 public:
-    static Context* GetInstance() 
+    static Context* GetInstance()
     {
         static Context instance;
         return &instance;
@@ -29,6 +32,9 @@ public:
 public:
     GameConfig* GetGameConfig() { return m_pGameConfig; }
     DatabasePool* GetDatabasePool() { return m_pDbPool; }
+
+    bool LoadDatabaseModules();
+    void SetupNetBurstFromConfig();
 
 private:
     DatabasePool* m_pDbPool;

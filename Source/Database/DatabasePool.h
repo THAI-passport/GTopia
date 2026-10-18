@@ -1,13 +1,13 @@
 #pragma once
 
 #include "../Precompiled.h"
-#include <concurrentqueue.h>
 #include "DatabaseManager.h"
-#include "QueryUtils.h"
 #include "DatabaseWorker.h"
+#include "QueryUtils.h"
+#include <concurrentqueue.h>
 
-class DatabasePool {
-
+class DatabasePool
+{
     friend DatabaseWorker;
 
 public:

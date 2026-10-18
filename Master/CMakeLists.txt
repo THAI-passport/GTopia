@@ -30,13 +30,23 @@ set(MASTER_COMMAND "${MASTER_ROOT}/Command")
 set(MASTER_FILES PRIVATE
     ${SOURCE_DATABASE}/Table/PlayerDBTable.cpp
     ${SOURCE_DATABASE}/Table/WorldDBTable.cpp
+    ${SOURCE_DATABASE}/Table/BanDBTable.cpp
+    ${SOURCE_DATABASE}/Table/StatsDBTable.cpp
+    ${SOURCE_DATABASE}/Table/HolidayDBTable.cpp
     ${SOURCE_UTILS}/GameConfig.cpp
     ${SOURCE_UTILS}/ConfigDB.cpp
+    ${SOURCE_UTILS}/GrowUtils.cpp
     ${SOURCE_UTILS}/Base64.cpp
+
+    ${SOURCE_HOLIDAY}/HolidayManager.cpp
 
     ${SOURCE_PACKET}/NetPacket.cpp
     ${SOURCE_PACKET}/PacketPool.cpp
     ${SOURCE_PACKET}/VariantPacket.cpp
+
+    ${SOURCE_ITEM}/ItemInfo.cpp
+    ${SOURCE_ITEM}/ItemInfoManager.cpp
+    ${SOURCE_ITEM}/ItemUtils.cpp
 
     ${MASTER_EVENT}/TCP/TCPEvent_Player.cpp
     ${MASTER_EVENT}/TCP/TCPEvent_Server.cpp
@@ -50,11 +60,14 @@ set(MASTER_FILES PRIVATE
     ${SOURCE_PLAYER}/PlayerLoginDetail.cpp
     ${SOURCE_PLAYER}/RoleManager.cpp
     ${SOURCE_PLAYER}/Role.cpp
+    ${SOURCE_PLAYER}/PlayModManager.cpp
+    ${SOURCE_PLAYER}/PlayerPlayMod.cpp
     ${MASTER_PLAYER}/GamePlayer.cpp
     ${MASTER_PLAYER}/PlayerManager.cpp
 
     ${SOURCE_SERVER}/ServerBase.cpp
     ${SOURCE_SERVER}/ServerBroadwayBase.cpp
+    ${SOURCE_SERVER}/StatsManager.cpp
     ${MASTER_SERVER}/GameServer.cpp
     ${MASTER_SERVER}/ServerManager.cpp
     ${MASTER_SERVER}/AdminServer.cpp
@@ -62,9 +75,23 @@ set(MASTER_FILES PRIVATE
 
     ${MASTER_COMMAND}/Commands.cpp
 
+    ${SOURCE_NETWORK}/NetHTTP.cpp
+    ${SOURCE_NETWORK}/DiscordWebhook.cpp
+
     ${MASTER_ROOT}/Context.cpp
     ${MASTER_ROOT}/Main.cpp
 )
+
+if(WIN32)
+    list(APPEND MASTER_FILES ${SOURCE_NETWORK}/NetHTTP_WinHTTP.cpp)
+else()
+    if(NETHTTP_USE_CURL)
+        find_package(CURL REQUIRED)
+        list(APPEND MASTER_FILES ${SOURCE_NETWORK}/NetHTTP_Curl.cpp)
+    else()
+        list(APPEND MASTER_FILES ${SOURCE_NETWORK}/NetHTTP_Socket.cpp)
+    endif()
+endif()
 
 add_executable(Master)
 add_default_sources(Master)
@@ -83,16 +110,25 @@ target_include_directories(Master PRIVATE
     ${MYSQL_INCLUDE_DIR}
 )
 
+if(NOT WIN32 AND NETHTTP_USE_CURL)
+    target_include_directories(Master PRIVATE ${CURL_INCLUDE_DIRS})
+    target_compile_definitions(Master PRIVATE NETHTTP_USE_CURL)
+endif()
+
 target_link_libraries(Master PRIVATE
     ${MYSQL_LIB}
 )
 
 if(WIN32)
     target_link_libraries(Master PRIVATE
-        winmm ws2_32
+        winmm ws2_32 winhttp
     )
     target_compile_definitions(Master PRIVATE WIN32_LEAN_AND_MEAN)
-endif(WIN32)
+else()
+    if(NETHTTP_USE_CURL)
+        target_link_libraries(GameServer PRIVATE ${CURL_LIBRARIES})
+    endif()
+endif()
 
 copy_dll(Master "${MYSQL_LIB_DIR}/libmysql.dll")
 

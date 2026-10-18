@@ -37,6 +37,8 @@ public:
 public:
     void Serialize(MemoryBuffer& memBuffer, bool write, bool database);
     uint32 GetMemEstimate();
+    void Clear();
+
     void AddItem(int16 itemID, uint8 count, Vector2Float pos, uint8 flags = 0);
     void ModifyItem(uint32 objectID, int16 itemID, uint8 count, Vector2Float pos, uint8 flags);
     void DeleteByID(uint32 objectID);
@@ -46,6 +48,10 @@ public:
     std::vector<WorldObject*> GetObjectsInRectByItemID(const RectFloat& rect, int16 itemID);
     uint32 GetCounfOfObjestsInRect(const RectFloat& rect);
     WorldObject* GetObjectByID(uint32 objectID);
+    uint32 GetTotalCountOfObjectsByItemIDs(const std::initializer_list<int16>& itemIDs);
+
+    std::vector<WorldObject>& GetObjects() { return m_objects; };
+    int32 GetLastObjectID() const { return m_lastObjectID; }
 
 private:
     std::vector<WorldObject> m_objects;

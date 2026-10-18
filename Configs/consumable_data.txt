@@ -17,6 +17,9 @@ set_flags|NEED_TILE|
 add_consume|3722|0|1|0|0|||
 set_flags|NEED_TILE|
 
+add_consume|4132|0|1|0|0|||
+set_flags|NEED_TILE|
+
 add_consume|6080|0|1|0|0|||
 set_flags|NEED_TILE|
 

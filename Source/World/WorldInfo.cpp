@@ -25,9 +25,7 @@ uint16 ChooseWorldVersionForClient(float gameVersion)
     for (auto& [minVersion, worldVer] : sWorldVersionMap)
     {
         if (gameVersion >= minVersion)
-        {
             return worldVer;
-        }
     }
 
     return 0;
@@ -35,6 +33,7 @@ uint16 ChooseWorldVersionForClient(float gameVersion)
 
 WorldInfo::WorldInfo() : m_version(DEFAULT_WORLD_VERSION_FOR_DB), m_flags(0), m_defaultWeather(0), m_currentWeather(0)
 {
+    // why did i even used ptrs for these bruh
     m_pTileMgr = new WorldTileManager(this);
     m_pObjMgr = new WorldObjectManager();
 }
@@ -56,15 +55,32 @@ void WorldInfo::Kill()
     SAFE_DELETE(m_pObjMgr);
 }
 
-// todo world version for importing rgt
-// database = false, write = false
+void WorldInfo::Clear()
+{
+    m_currentWeather = 0;
+    m_defaultWeather = 0;
+    m_flags = 0;
+    m_name = "";
+    m_pTileMgr->Clear();
+    m_pObjMgr->Clear();
+}
 
 bool WorldInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, int16 worldVersion, float gameVersion)
 {
     if (database && worldVersion == -1)
         worldVersion = m_version;
 
-    memBuffer.ReadWrite(worldVersion, write);
+    if (!write)
+        Clear();
+
+    if (database && worldVersion == 0) // for importing
+    {
+        memBuffer.ReadWrite(m_version, write);
+        worldVersion = m_version;
+    }
+    else
+        memBuffer.ReadWrite(worldVersion, write);
+
     memBuffer.ReadWrite(m_flags, write);
     memBuffer.ReadWriteString(m_name, write);
 
@@ -84,12 +100,25 @@ bool WorldInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, in
     uint16 unused = 0;
     memBuffer.ReadWrite(m_defaultWeather, write);
     memBuffer.ReadWrite(unused, write);
-    memBuffer.ReadWrite(m_currentWeather, write);
+
+    if (write && !database)
+    {
+        uint16 currentWeather = GetCurrentWeather();
+        memBuffer.ReadWrite(currentWeather, write);
+    }
+    else
+        memBuffer.ReadWrite(m_currentWeather, write);
+
     memBuffer.ReadWrite(unused, write);
 
     uint32 unused2 = 0;
     memBuffer.ReadWrite(unused2, write);
     return true;
+}
+
+uint16 WorldInfo::GetCurrentWeather() const
+{
+    return m_currentWeather;
 }
 
 void WorldInfo::GenerateWorld(eWorldGenerationType type)
@@ -137,4 +166,35 @@ uint32 WorldInfo::GetMemEstimate(bool database, int16 worldVersion, float gameVe
     }
 
     return memSize;
+}
+
+bool WorldInfo::IsThereAnyUncoveredObject()
+{
+    auto objs = m_pObjMgr->GetObjects();
+    ItemInfoManager* pItemManager = GetItemInfoManager();
+
+    for (auto& obj : objs)
+    {
+        bool isSpecialItem = (obj.itemID == ITEM_ID_GEMS || obj.itemID == ITEM_ID_FIREWORKS ||
+                              obj.itemID == ITEM_ID_COMET_DUST || obj.itemID == ITEM_ID_ANTIMATTER_DUST ||
+                              obj.itemID == ITEM_ID_BUNNY_EGG || obj.itemID == ITEM_ID_MUTATED_CELL);
+
+        if (isSpecialItem && obj.count > 9)
+            continue;
+
+        TileInfo* pTile = m_pTileMgr->GetTileByWorldPos(obj.GetCenterPos());
+        if (pTile)
+        {
+            if (pTile->IsSolid())
+            {
+                ItemInfo* pItem = pItemManager->GetItemByID(pTile->GetFG());
+                if (pItem && pItem->HasFlag(ITEM_FLAG_PUBLIC))
+                    continue;
+            }
+
+            return false;
+        }
+    }
+
+    return false;
 }

@@ -188,6 +188,23 @@ void PlayerManager::BroadcastMessage(const string& message, const string& worldN
     }
 }
 
+void PlayerManager::BroadcastMusic(const string& fileName, int32 delay)
+{
+    if (fileName.empty())
+        return;
+
+    for (auto& [_, pPlayer] : m_gamePlayers)
+    {
+        if (!pPlayer)
+            continue;
+
+        if (pPlayer->HasState(PLAYER_STATE_DELETE))
+            continue;
+
+        pPlayer->PlayMusic(fileName, delay);
+    }
+}
+
 PlayerManager* GetPlayerManager()
 {
     return PlayerManager::GetInstance();

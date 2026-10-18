@@ -1,10 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 project(GameServer)
 
+include(ExternalProject)
+
 set(CMAKE_CXX_STANDARD 17)
 
 # Needed for HTTPS requests
 option(NETHTTP_USE_CURL "Use libcurl for HTTP requests on non Windows" OFF)
+
+# Lua configs
+option(ENABLE_LUA_SCRIPTING "Enable Lua scripting support" ON)
 
 if(MSVC)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /D_NDEBUG /O2")
@@ -32,15 +37,27 @@ set(GAME_COMMAND "${GAME_ROOT}/Command")
 set(GAME_DIALOG "${GAME_ROOT}/Dialog")
 set(GAME_STORE "${GAME_ROOT}/Store")
 set(GAME_ITEM "${GAME_ROOT}/Item")
+set(GAME_LUA "${GAME_ROOT}/Lua")
+
+if(ENABLE_LUA_SCRIPTING)
+    if(NOT EXISTS "${THIRD_PARTY_LUAJIT}/src/lua.h")
+        message(FATAL_ERROR "LuaJIT submodule not found or uninitialized!\nPlease run: git submodule update --init --recursive ThirdParty/luajit")
+    endif()
+endif()
 
 set(GAME_FILES PRIVATE
     ${SOURCE_DATABASE}/Table/PlayerDBTable.cpp
     ${SOURCE_DATABASE}/Table/WorldDBTable.cpp
+    ${SOURCE_DATABASE}/Table/BanDBTable.cpp
+    ${SOURCE_DATABASE}/Table/StatsDBTable.cpp
+    ${SOURCE_DATABASE}/Table/HolidayDBTable.cpp
     ${SOURCE_UTILS}/GameConfig.cpp
     ${SOURCE_UTILS}/DialogBuilder.cpp
     ${SOURCE_UTILS}/ConfigDB.cpp
     ${SOURCE_UTILS}/GrowUtils.cpp
     ${SOURCE_UTILS}/Base64.cpp
+
+    ${SOURCE_HOLIDAY}/HolidayManager.cpp
 
     ${SOURCE_PACKET}/NetPacket.cpp
     ${SOURCE_PACKET}/PacketPool.cpp
@@ -49,7 +66,6 @@ set(GAME_FILES PRIVATE
     ${SOURCE_ITEM}/ItemInfo.cpp
     ${SOURCE_ITEM}/ItemInfoManager.cpp
     ${SOURCE_ITEM}/ItemUtils.cpp
-    ${SOURCE_ITEM}/BattlePetInfo.cpp
 
     ${GAME_EVENT}/TCP/TCPEvent_Command.cpp
     ${GAME_EVENT}/TCP/TCPEvent_Player.cpp
@@ -59,7 +75,6 @@ set(GAME_FILES PRIVATE
     ${GAME_EVENT}/UDP/GameMessage/GameMessage_Input.cpp
     ${GAME_EVENT}/UDP/GameMessage/GameMessage_Item.cpp
     ${GAME_EVENT}/UDP/GameMessage/GameMessage_Player.cpp
-    ${GAME_EVENT}/UDP/GameMessage/GameMessage_Trade.cpp
 
     ${GAME_EVENT}/UDP/GamePacket/ItemActivateRequest.cpp
     ${GAME_EVENT}/UDP/GamePacket/TileChangeRequest.cpp
@@ -80,6 +95,7 @@ set(GAME_FILES PRIVATE
     ${GAME_WORLD}/WorldNPC.cpp
     ${GAME_WORLD}/WorldNPCManager.cpp
     ${GAME_WORLD}/WorldBossManager.cpp
+    ${GAME_WORLD}/WorldEventManager.cpp
 
     ${GAME_DIALOG}/GameDialogs.cpp
     ${GAME_DIALOG}/DialogManager.cpp
@@ -90,8 +106,8 @@ set(GAME_FILES PRIVATE
     ${SOURCE_PLAYER}/PlayerTribute.cpp
     ${SOURCE_PLAYER}/PlayerInventory.cpp
     ${SOURCE_PLAYER}/PlayerLoginDetail.cpp
-    ${SOURCE_PLAYER}/PlayMod.cpp
     ${SOURCE_PLAYER}/PlayModManager.cpp
+    ${SOURCE_PLAYER}/PlayerPlayMod.cpp
     ${GAME_PLAYER}/GamePlayer.cpp
     ${GAME_PLAYER}/PlayerManager.cpp
     ${GAME_PLAYER}/AchievementManager.cpp
@@ -108,6 +124,7 @@ set(GAME_FILES PRIVATE
 
     ${SOURCE_SERVER}/ServerBase.cpp
     ${SOURCE_SERVER}/ServerBroadwayBase.cpp
+    ${SOURCE_SERVER}/StatsManager.cpp
     ${GAME_SERVER}/GameServer.cpp
     ${GAME_SERVER}/MasterBroadway.cpp
     ${GAME_SERVER}/UserCacheManager.cpp
@@ -119,6 +136,19 @@ set(GAME_FILES PRIVATE
     ${GAME_ROOT}/Context.cpp
     ${GAME_ROOT}/Main.cpp
 )
+
+if(ENABLE_LUA_SCRIPTING)
+    list(APPEND GAME_FILES 
+        ${GAME_LUA}/LuaManager.cpp 
+        ${GAME_LUA}/Bindings/PlayerBinding.cpp
+        ${GAME_LUA}/Bindings/WorldBinding.cpp
+        ${GAME_LUA}/Bindings/ItemBinding.cpp
+        ${GAME_LUA}/Bindings/CommandBinding.cpp
+        ${GAME_LUA}/Bindings/DialogBinding.cpp
+        ${GAME_LUA}/Bindings/MathBinding.cpp
+        ${GAME_LUA}/Bindings/DiscordBinding.cpp
+    )
+endif()
 
 if(WIN32)
     list(APPEND GAME_FILES ${SOURCE_NETWORK}/NetHTTP_WinHTTP.cpp)
@@ -148,6 +178,36 @@ target_include_directories(GameServer PRIVATE
     ${GAME_ROOT}
     ${MYSQL_INCLUDE_DIR}
 )
+
+if(ENABLE_LUA_SCRIPTING)
+    target_compile_definitions(GameServer PRIVATE ENABLE_LUA_SCRIPTING)
+
+    if(MSVC)
+        ExternalProject_Add(
+            luajit_build
+            SOURCE_DIR "${THIRD_PARTY_LUAJIT}"
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND cmd /c "cd /d ${THIRD_PARTY_LUAJIT}\\src && msvcbuild.bat static"
+            INSTALL_COMMAND ""
+            BUILD_BYPRODUCTS "${THIRD_PARTY_LUAJIT}/src/lua51.lib"
+        )
+        set(LUAJIT_LIB "${THIRD_PARTY_LUAJIT}/src/lua51.lib")
+    else()
+        ExternalProject_Add(
+            luajit_build
+            SOURCE_DIR "${THIRD_PARTY_LUAJIT}"
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND make -C "${THIRD_PARTY_LUAJIT}/src" amalg
+            INSTALL_COMMAND ""
+            BUILD_BYPRODUCTS "${THIRD_PARTY_LUAJIT}/src/libluajit.a"
+        )
+        set(LUAJIT_LIB "${THIRD_PARTY_LUAJIT}/src/libluajit.a")
+    endif()
+
+    add_dependencies(GameServer luajit_build)
+    target_include_directories(GameServer PRIVATE "${THIRD_PARTY_LUAJIT}/src")
+    target_link_libraries(GameServer PRIVATE "${LUAJIT_LIB}")
+endif()
 
 if(NOT WIN32 AND NETHTTP_USE_CURL)
     target_include_directories(GameServer PRIVATE ${CURL_INCLUDE_DIRS})

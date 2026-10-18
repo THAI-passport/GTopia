@@ -64,7 +64,7 @@ void TileInfo::Serialize(MemoryBuffer& memBuffer, bool write, bool database, int
             if (!pItem)
                 return;
 
-            uint8 tileExtraType = GetTileExtraTypeByItemType(pItem->type);
+            uint8 tileExtraType = GetTileExtraTypeByItem(pItem->id, pItem->type);
             if (tileExtraType != TILE_EXTRA_TYPE_NONE)
             {
                 m_pExtraData = CreateTileExtra(tileExtraType);
@@ -144,7 +144,7 @@ void TileInfo::SetFG(int16 itemID, WorldTileManager* pTileMgr)
         return;
     }
 
-    uint8 tileExtraType = GetTileExtraTypeByItemType(pItem->type);
+    uint8 tileExtraType = GetTileExtraTypeByItem(pItem->id, pItem->type);
     if (tileExtraType != TILE_EXTRA_TYPE_NONE)
     {
         SetFlag(TILE_FLAG_HAS_EXTRA_DATA);
@@ -207,7 +207,7 @@ void TileInfo::SetBG(int16 itemID, WorldTileManager* pTileMgr)
 
 bool TileInfo::IsCollidable()
 {
-    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(GetDisplayedItem());
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(GetFG());
     if (!pItem)
         return true;
 
@@ -218,6 +218,15 @@ bool TileInfo::IsCollidable()
         return HasFlag(TILE_FLAG_IS_ON);
 
     return !(pItem->collisionType == COLLISION_NONE || pItem->collisionType == COLLISION_ONE_WAY);
+}
+
+bool TileInfo::IsSolid()
+{
+    ItemInfo* pItem = GetItemInfoManager()->GetItemByID(GetFG());
+    if (!pItem)
+        return true;
+
+    return pItem->collisionType == COLLISION_SOLID;
 }
 
 void TileInfo::BindTileData(TempTileData* pTileData)

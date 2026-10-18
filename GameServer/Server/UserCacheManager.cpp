@@ -6,6 +6,7 @@
 #include "../World/WorldManager.h"
 #include "Item/ItemInfoManager.h"
 #include "Player/RoleManager.h"
+#include "Utils/GrowUtils.h"
 
 UserCacheManager::UserCacheManager()
 {
@@ -19,10 +20,21 @@ void UserCacheManager::Init(uint32 maxExpectedPlayers)
     m_pendingRequests.reserve(maxExpectedPlayers);
     m_cache.reserve(maxExpectedPlayers * 2);
     m_inFlightUserIDs.reserve(32);
+    m_dbWatchers.reserve(32);
 }
 
 UserMetadata* UserCacheManager::GetMetadata(uint32 userID)
 {
+    if (userID == 0)
+        return nullptr;
+
+    auto it = m_cache.find(userID);
+    if (it != m_cache.end())
+    {
+        it->second.cacheTime.Reset();
+        return &it->second;
+    }
+
     GamePlayer* pPlayer = GetPlayerManager()->GetPlayerByUserID(userID);
     if (pPlayer && !pPlayer->HasState(PLAYER_STATE_DELETE) && pPlayer->HasState(PLAYER_STATE_IN_GAME))
     {
@@ -32,16 +44,16 @@ UserMetadata* UserCacheManager::GetMetadata(uint32 userID)
             roleID = pRole->GetID();
         }
 
-        m_cache[userID] = {userID, pPlayer->GetRawName(), pPlayer->GetDisplayName(false), roleID, Timer()};
-        return &m_cache[userID];
+        UserMetadata& meta = m_cache[userID];
+        meta.userID = userID;
+        meta.name = pPlayer->GetRawName();
+        meta.displayName = pPlayer->GetDisplayName(false);
+        meta.roleID = roleID;
+        meta.cacheTime.Reset();
+
+        return &meta;
     }
 
-    auto it = m_cache.find(userID);
-    if (it != m_cache.end())
-    {
-        it->second.cacheTime.Reset();
-        return &it->second;
-    }
     return nullptr;
 }
 
@@ -56,12 +68,12 @@ void UserCacheManager::FetchMetadata(uint32 playerNetID, eCacheRequestType reqTy
     if (m_pendingRequests.find(playerNetID) != m_pendingRequests.end())
         return;
 
-    static std::vector<int32> missingIDs;
-    missingIDs.clear();
+    std::vector<int32> missingIDs;
+    missingIDs.reserve(userIDs.size());
 
     for (int32 id : userIDs)
     {
-        if (id > 0 && !IsCached(id))
+        if (id > 0 && !IsCached((uint32)(id)))
         {
             missingIDs.push_back(id);
         }
@@ -77,18 +89,20 @@ void UserCacheManager::FetchMetadata(uint32 playerNetID, eCacheRequestType reqTy
         return;
     }
 
-    // yea whatever
     std::sort(missingIDs.begin(), missingIDs.end());
     missingIDs.erase(std::unique(missingIDs.begin(), missingIDs.end()), missingIDs.end());
 
-    PendingRequest& pending = m_pendingRequests[playerNetID];
+    PendingRequest pending;
     pending.missingCount = missingIDs.size();
     pending.reqType = reqType;
     pending.params = params;
     pending.SetText(textParam);
 
-    for (uint32 missingID : missingIDs)
+    m_pendingRequests.emplace(playerNetID, std::move(pending));
+
+    for (int32 missingIDVal : missingIDs)
     {
+        uint32 missingID = (uint32)missingIDVal;
         m_dbWatchers[missingID].push_back(playerNetID);
 
         if (m_inFlightUserIDs.find(missingID) != m_inFlightUserIDs.end())
@@ -106,24 +120,20 @@ void UserCacheManager::FetchMetadata(uint32 playerNetID, eCacheRequestType reqTy
 void UserCacheManager::OnMetadataFetched(QueryTaskResult&& result)
 {
     if (result.extraData.empty())
-    {
-        result.Destroy();
         return;
-    }
 
     Variant* pFetchedUser = result.GetExtraData(0);
     if (!pFetchedUser)
-    {
-        result.Destroy();
         return;
-    }
 
     uint32 fetchedUserID = pFetchedUser->GetUINT();
     UserCacheManager* pCacheMgr = GetUserCacheManager();
 
     pCacheMgr->m_inFlightUserIDs.erase(fetchedUserID);
 
-    if (result.status == QUERY_STATUS_OK && result.result)
+    bool userFound = false;
+
+    if (result.status == QUERY_STATUS_OK && result.result && result.result->GetRowCount() > 0)
     {
         for (uint32 i = 0; i < result.result->GetRowCount(); ++i)
         {
@@ -131,36 +141,30 @@ void UserCacheManager::OnMetadataFetched(QueryTaskResult&& result)
             meta.userID = fetchedUserID;
 
             const string& name = result.result->GetField("Name", i).GetString();
-            if (name.empty())
-            {
-                meta.name = result.result->GetField("GuestName", i).GetString() + "_";
-                meta.name += ToString(result.result->GetField("GuestID", i).GetINT());
-            }
-            else
-            {
-                meta.name = name;
-            }
+            const string& guestName = result.result->GetField("GuestName", i).GetString();
+            int32 guestID = result.result->GetField("GuestID", i).GetINT();
+            int32 roleID = result.result->GetField("RoleID", i).GetINT();
 
-            uint32 roleID = result.result->GetField("RoleID", i).GetINT();
-            Role* pRole = GetRoleManager()->GetRole(roleID);
-            if (pRole)
-            {
-                meta.roleID = roleID;
-
-                if (pRole->GetNameColor() != 0)
-                {
-                    meta.displayName += "`";
-                    meta.displayName += pRole->GetNameColor();
-                }
-
-                meta.displayName += pRole->GetPrefix() + meta.name + pRole->GetSuffix();
-            }
-
+            meta.name = GetPlayerRawName(name, guestName, guestID);
+            meta.displayName = GetPlayerDisplayName(meta.name, roleID, false, false, false);
             meta.cacheTime.Reset();
+
             pCacheMgr->m_cache[fetchedUserID] = std::move(meta);
+            userFound = true;
         }
     }
-    result.Destroy();
+
+    if (!userFound)
+    {
+        UserMetadata meta;
+        meta.userID = fetchedUserID;
+        meta.name = "DeletedUser";
+        meta.displayName = "`4DeletedUser``";
+        meta.roleID = 0;
+        meta.cacheTime.Reset();
+
+        pCacheMgr->m_cache[fetchedUserID] = std::move(meta);
+    }
 
     auto watcherIt = pCacheMgr->m_dbWatchers.find(fetchedUserID);
     if (watcherIt != pCacheMgr->m_dbWatchers.end())
@@ -170,7 +174,10 @@ void UserCacheManager::OnMetadataFetched(QueryTaskResult&& result)
             auto reqIt = pCacheMgr->m_pendingRequests.find(playerNetID);
             if (reqIt != pCacheMgr->m_pendingRequests.end())
             {
-                reqIt->second.missingCount--;
+                if (reqIt->second.missingCount > 0)
+                {
+                    reqIt->second.missingCount--;
+                }
 
                 if (reqIt->second.missingCount == 0)
                 {
@@ -200,11 +207,8 @@ void UserCacheManager::ExecuteRequest(uint32 playerNetID, const PendingRequest& 
 
         case CACHE_REQ_WORLD_LOCK_DIALOG:
         {
-            if (request.params.size() < 3)
-                break;
-
-            LockDialog::HandleFromCache(pPlayer, request.params[0].GetInt32(), request.params[1].GetInt32(),
-                                        request.params[2].GetInt32());
+            LockDialog::HandleFromCache(pPlayer, request.params[0].GetINT(), request.params[1].GetINT(),
+                                        request.params[2].GetINT());
             break;
         }
 
@@ -216,31 +220,28 @@ void UserCacheManager::ExecuteRequest(uint32 playerNetID, const PendingRequest& 
 
         case CACHE_REQ_MAILBOX_BLOCK:
         {
-            if (request.params.size() < 3)
-                break;
-
-            MailboxBlockDialog::HandleFromCache(pPlayer, request.params[0].GetInt32(), request.params[1].GetInt32(),
-                                                request.params[2].GetInt32());
+            MailboxBlockDialog::HandleFromCache(pPlayer, request.params[0].GetINT(), request.params[1].GetINT(),
+                                                request.params[2].GetINT());
             break;
         }
 
         case CACHE_REQ_BULLETIN_BLOCK:
         {
-            if (request.params.size() < 3)
-                break;
-
-            BulletinBlockDialog::HandleFromCache(pPlayer, request.params[0].GetInt32(), request.params[1].GetInt32(),
-                                                 request.params[2].GetInt32());
+            BulletinBlockDialog::HandleFromCache(pPlayer, request.params[0].GetINT(), request.params[1].GetINT(),
+                                                 request.params[2].GetINT());
             break;
         }
 
         case CACHE_REQ_DONATION_BOX_BLOCK:
         {
-            if (request.params.size() < 3)
-                break;
+            DonationBoxDialog::HandleFromCache(pPlayer, request.params[0].GetINT(), request.params[1].GetINT(),
+                                               request.params[2].GetINT());
+            break;
+        }
 
-            DonationBoxDialog::HandleFromCache(pPlayer, request.params[0].GetInt32(), request.params[1].GetInt32(),
-                                               request.params[2].GetInt32());
+        case CACHE_REQ_WORLD_ENTER_STAT_MESSAGE:
+        {
+            OnPlayerEnteredWorldStatusMessage(pPlayer, request);
             break;
         }
 
@@ -251,25 +252,23 @@ void UserCacheManager::ExecuteRequest(uint32 playerNetID, const PendingRequest& 
 
 void UserCacheManager::OnTriedPunchedOrPlaceLockedArea(GamePlayer* pPlayer, const PendingRequest& request)
 {
-    if (!pPlayer || request.params.size() < 3)
+    if (!pPlayer)
         return;
 
-    if (pPlayer->GetCurrentWorld() != request.params[0].GetInt32())
+    int32 worldID = request.params[0].GetUINT();
+    if (pPlayer->GetCurrentWorld() != worldID)
         return;
 
-    World* pWorld = GetWorldManager()->GetWorldByInstanceID(pPlayer->GetCurrentWorld());
+    World* pWorld = GetWorldManager()->GetWorldByInstanceID(worldID);
     if (!pWorld)
         return;
 
-    TileInfo* pTile = pWorld->GetTileManager()->GetTile(request.params[1].GetInt32(), request.params[2].GetInt32());
+    TileInfo* pTile = pWorld->GetTileManager()->GetTile(request.params[1].GetINT(), request.params[2].GetINT());
     if (!pTile)
         return;
 
     TileExtra_Lock* pTileExtra = pTile->GetExtra<TileExtra_Lock>();
-    if (!pTileExtra)
-        return;
-
-    if (pTileExtra->ownerID < 1)
+    if (!pTileExtra || pTileExtra->ownerID < 1)
         return;
 
     UserMetadata* pUserMeta = GetMetadata(pTileExtra->ownerID);
@@ -277,14 +276,23 @@ void UserCacheManager::OnTriedPunchedOrPlaceLockedArea(GamePlayer* pPlayer, cons
         return;
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetFG());
-    if (pItem->type != ITEM_TYPE_LOCK)
+    if (!pItem || pItem->type != ITEM_TYPE_LOCK)
         return;
 
     string notifyMsg;
-    if (request.params[3].GetUInt32() == 0)
+    if (request.params[3].GetUINT() == 0)
     {
-        notifyMsg = "`w" + pUserMeta->displayName + +"``'s `$" + pItem->name + "``.";
-        if (pTileExtra->HasAccess(pPlayer->GetUserID()))
+        notifyMsg += "`w";
+        notifyMsg += pUserMeta->displayName;
+        notifyMsg += "``'s `$";
+        notifyMsg += pItem->name;
+        notifyMsg += "``.";
+
+        if (pTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC))
+        {
+            notifyMsg += " (Open to public)";
+        }
+        else if (pTileExtra->HasAccess(pPlayer->GetUserID()))
         {
             notifyMsg += " (`2Access granted``)";
         }
@@ -295,26 +303,28 @@ void UserCacheManager::OnTriedPunchedOrPlaceLockedArea(GamePlayer* pPlayer, cons
     }
     else
     {
-        notifyMsg = "That area is owned by `w" + pUserMeta->displayName;
+        notifyMsg += "That area is owned by `w";
+        notifyMsg += pUserMeta->displayName;
     }
 
     pPlayer->SendOnTalkBubble(notifyMsg, true);
-    pPlayer->PlaySFX("punch_locked.wav");
+    pWorld->SendPlayPositionedToAll(pPlayer, "punch_locked.wav");
 }
 
 void UserCacheManager::OnPunchedAchievementBlock(GamePlayer* pPlayer, const PendingRequest& request)
 {
-    if (!pPlayer || request.params.size() < 3)
+    if (!pPlayer)
         return;
 
-    if (pPlayer->GetCurrentWorld() != request.params[0].GetInt32())
+    int32 worldID = request.params[0].GetUINT();
+    if (pPlayer->GetCurrentWorld() != worldID)
         return;
 
-    World* pWorld = GetWorldManager()->GetWorldByInstanceID(pPlayer->GetCurrentWorld());
+    World* pWorld = GetWorldManager()->GetWorldByInstanceID(worldID);
     if (!pWorld)
         return;
 
-    TileInfo* pTile = pWorld->GetTileManager()->GetTile(request.params[1].GetInt32(), request.params[2].GetInt32());
+    TileInfo* pTile = pWorld->GetTileManager()->GetTile(request.params[1].GetINT(), request.params[2].GetINT());
     if (!pTile)
         return;
 
@@ -327,17 +337,62 @@ void UserCacheManager::OnPunchedAchievementBlock(GamePlayer* pPlayer, const Pend
         return;
 
     ItemInfo* pItem = GetItemInfoManager()->GetItemByID(pTile->GetFG());
-    if (pItem->type != ITEM_TYPE_ACHIEVEMENT)
+    if (!pItem || pItem->type != ITEM_TYPE_ACHIEVEMENT)
         return;
 
-    AchievementInfo* pAchievement = GetAchievementManager()->GetAchievement((eAchievement)pTileExtra->achievementID);
+    AchievementInfo* pAchievement = GetAchievementManager()->GetAchievement((eAchievement)(pTileExtra->achievementID));
     if (!pAchievement)
     {
         pPlayer->SendOnTalkBubble("Invalid achievement.", true);
         return;
     }
 
-    pPlayer->SendOnTalkBubble(pAchievement->name + " earned by " + pUserMeta->name, true);
+    string bubbleText;
+    bubbleText += pAchievement->name;
+    bubbleText += " earned by ";
+    bubbleText += pUserMeta->name;
+
+    pPlayer->SendOnTalkBubble(bubbleText, true);
+}
+
+void UserCacheManager::OnPlayerEnteredWorldStatusMessage(GamePlayer* pPlayer, const PendingRequest& request)
+{
+    if (!pPlayer)
+        return;
+
+    int32 worldID = request.params[0].GetUINT();
+    if (pPlayer->GetCurrentWorld() != worldID)
+        return;
+
+    if (World* pWorld = GetWorldManager()->GetWorldByInstanceID(worldID))
+    {
+        string statusMsg;
+        statusMsg += "`o`5[`w";
+        statusMsg += pWorld->GetWorldName();
+        statusMsg += "`` `$World Locked``";
+
+        if (UserMetadata* pUserMeta = GetMetadata(pWorld->GetWorldOwnerID()))
+        {
+            statusMsg += " by ";
+            statusMsg += pUserMeta->displayName;
+            statusMsg += "``";
+        }
+
+        if (TileInfo* pWorldLockTile = pWorld->GetTileManager()->GetKeyTile(KEY_TILE_WORLD_LOCK))
+        {
+            if (TileExtra_Lock* pTileExtra = pWorldLockTile->GetExtra<TileExtra_Lock>())
+            {
+                if (pWorldLockTile->HasFlag(TILE_FLAG_IS_OPEN_TO_PUBLIC))
+                    statusMsg += " (`$PUBLIC``)`5]``";
+                else if (pTileExtra->HasAccess(pPlayer->GetUserID()))
+                    statusMsg += " (`2ACCESS GRANTED``)`5]``";
+                else
+                    statusMsg += "`5]``";
+            }
+        }
+
+        pPlayer->SendOnConsoleMessage(statusMsg);
+    }
 }
 
 void UserCacheManager::Update()

@@ -97,9 +97,7 @@ void ServerBroadwayBase::RegisterEvents()
 void ServerBroadwayBase::Update(bool asClient)
 {
     if (!m_pNetSocket)
-    {
         return;
-    }
 
     m_pNetSocket->Update(asClient);
 }
@@ -110,9 +108,7 @@ bool ServerBroadwayBase::Connect(const string& host, uint16 port, uint8 retryCou
                                  const volatile sig_atomic_t* shutdownFlag)
 {
     if (!m_pNetSocket)
-    {
         return false;
-    }
 
     uint64 connStartTime = Time::GetSystemTime();
     uint8 retriedSoFar = 0;
@@ -127,9 +123,7 @@ bool ServerBroadwayBase::Connect(const string& host, uint16 port, uint8 retryCou
         }
 
         if (retriedSoFar == retryCount)
-        {
             break;
-        }
 
         uint64 timeNow = Time::GetSystemTime();
         if (timeNow - connStartTime >= CONNECT_SOCKET_TIMEOUT_MS)

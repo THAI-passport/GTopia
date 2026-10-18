@@ -1,40 +1,27 @@
 #include "ServerBase.h"
-#include "../Utils/Timer.h"
 #include "../IO/Log.h"
+#include "../Utils/Timer.h"
 
-ServerBase::ServerBase()
-: m_lastConnectionID(0)
-{
-}
+ServerBase::ServerBase() : m_lastConnectionID(0) {}
 
 ServerBase::~ServerBase()
 {
     Kill();
 }
 
-void ServerBase::OnEventConnect(NetworkEvent& event)
-{
-}
+void ServerBase::OnEventConnect(NetworkEvent& event) {}
 
-void ServerBase::OnEventReceive(NetworkEvent& event)
-{
-}
+void ServerBase::OnEventReceive(NetworkEvent& event) {}
 
-void ServerBase::OnEventDisconnect(NetworkEvent& event)
-{
-}
+void ServerBase::OnEventDisconnect(NetworkEvent& event) {}
 
-void ServerBase::RegisterEvents()
-{
-}
+void ServerBase::RegisterEvents() {}
 
 bool ServerBase::Init(const string& host, uint16 port)
 {
     m_pENetServer = new ENetServer();
-    if(!m_pENetServer->Init(host, port)) 
-    {
+    if (!m_pENetServer->Init(host, port))
         return false;
-    }
 
     RegisterEvents();
     return true;
@@ -45,16 +32,16 @@ void ServerBase::Kill()
     SAFE_DELETE(m_pENetServer);
 }
 
-void ServerBase::Update()
-{
-    
-}
+void ServerBase::Update() {}
 
 void ServerBase::SetENetIncomeCmdType(uint8 type)
 {
-    if(type == 1) m_pENetServer->SetENetIncomeCmdType(ENET_HOST_INCOME_CMD_DEFAULT);
-    else if(type == 2) m_pENetServer->SetENetIncomeCmdType(ENET_HOST_INCOME_CMD_GT_PROTOCOL);
-    else m_pENetServer->SetENetIncomeCmdType(ENET_HOST_INCOME_CMD_BOTH);
+    if (type == 1)
+        m_pENetServer->SetENetIncomeCmdType(ENET_HOST_INCOME_CMD_DEFAULT);
+    else if (type == 2)
+        m_pENetServer->SetENetIncomeCmdType(ENET_HOST_INCOME_CMD_GT_PROTOCOL);
+    else
+        m_pENetServer->SetENetIncomeCmdType(ENET_HOST_INCOME_CMD_BOTH);
 }
 
 void ServerBase::UpdateGameLogic(uint64 maxTimeMS)
@@ -62,23 +49,23 @@ void ServerBase::UpdateGameLogic(uint64 maxTimeMS)
     Timer startTime;
     NetworkEvent netEvent;
 
-    while(m_networkQueue.try_dequeue(netEvent)) 
+    while (m_networkQueue.try_dequeue(netEvent))
     {
-        switch(netEvent.type) 
+        switch (netEvent.type)
         {
-            case ENET_EVENT_TYPE_CONNECT: 
+            case ENET_EVENT_TYPE_CONNECT:
             {
                 OnEventConnect(netEvent);
                 break;
             }
 
-            case ENET_EVENT_TYPE_RECEIVE: 
+            case ENET_EVENT_TYPE_RECEIVE:
             {
                 OnEventReceive(netEvent);
                 break;
             }
 
-            case ENET_EVENT_TYPE_DISCONNECT: 
+            case ENET_EVENT_TYPE_DISCONNECT:
             {
                 OnEventDisconnect(netEvent);
                 break;
@@ -88,7 +75,7 @@ void ServerBase::UpdateGameLogic(uint64 maxTimeMS)
                 break;
         }
 
-        if(startTime.GetElapsedTime() >= maxTimeMS) 
+        if (startTime.GetElapsedTime() >= maxTimeMS)
         {
             break;
         }

@@ -4,7 +4,8 @@
 
 #include "../Precompiled.h"
 
-class WeightRand {
+class WeightRand
+{
 public:
     struct Element
     {
@@ -21,6 +22,15 @@ public:
     void Add(int32 num, int32 weight);
     int32 GetTotalWeight();
     bool Roll(int32& out);
+
+#ifdef ENABLE_LUA_SCRIPTING // little hack
+    std::pair<bool, int32> RollPair()
+    {
+        int32 out = 0;
+        bool success = Roll(out);
+        return {success, out};
+    }
+#endif
 
 private:
     std::vector<Element> m_elements;

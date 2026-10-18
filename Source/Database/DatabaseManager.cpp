@@ -50,6 +50,12 @@ bool DatabaseManager::Query(const string& query)
     if (!m_pConnection)
         return false;
 
+    if (m_pLastStmt)
+    {
+        mysql_stmt_close(m_pLastStmt);
+        m_pLastStmt = nullptr;
+    }
+
     if (mysql_query(m_pConnection, query.c_str()))
     {
         PrintError();
@@ -205,6 +211,23 @@ bool DatabaseManager::Rollback()
 uint64 DatabaseManager::GetLastInsertID()
 {
     return mysql_insert_id(m_pConnection);
+}
+
+uint64 DatabaseManager::GetAffectedRowCount()
+{
+    if (m_pLastStmt)
+    {
+        uint64 rows = mysql_stmt_affected_rows(m_pLastStmt);
+        return (rows == (uint64)-1) ? 0 : rows;
+    }
+
+    if (m_pConnection)
+    {
+        uint64 rows = mysql_affected_rows(m_pConnection);
+        return (rows == (uint64)-1) ? 0 : rows;
+    }
+
+    return 0;
 }
 
 string DatabaseManager::EscapeString(const string& value)

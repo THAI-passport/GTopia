@@ -161,32 +161,29 @@ bool GameConfig::LoadConfig(const string& filePath)
             continue;
         }
 
-        /*if(key == "enable_world_balance")
+        if (key == "enable_world_balance")
         {
-            if(!line.Require(1))
+            if (!line.Require(1))
                 return false;
 
-            isWorldBalancerEnabled = line.GetInt(1) == 1 ? true : false;
+            isWorldBalancerEnabled = (line.GetInt(1) == 1 ? true : false);
         }
 
-        if(key == "balance_world")
+        if (key == "balance_world")
         {
-            if(!line.Require(4))
+            if (!line.Require(4))
                 return false;
 
             WorldBalanceConfigSchema blnc;
             blnc.worldName = line.GetString(1);
             blnc.fileName = line.GetString(2);
-            blnc.maxInstance = line.GetUInt(3);
-            blnc.keepExactId = line.GetInt(4) == 1 ? true : false;
+            blnc.closeFileName = line.GetString(3);
+            blnc.maxInstance = line.GetUInt(4);
+            blnc.keepExactId = (line.GetInt(5) == 1 ? true : false);
+            blnc.holidayKey = line.GetString(6);
 
             balancedWorlds.push_back(std::move(blnc));
         }
-
-        if(key == "balance_soft_cap_ratio")
-        {
-            balanceSoftCapRatio = line.GetFloat(1, 0.6f);
-        }*/
 
         if (key == "max_npc_per_world")
         {
@@ -235,8 +232,79 @@ bool GameConfig::LoadConfig(const string& filePath)
                 discordWebhooks.push_back(std::move(webhook));
             }
         }
+
+        if (key == "lua_scripts_path")
+        {
+            if (line.Require(1))
+            {
+                luaScriptsPath = line.GetString(1);
+            }
+        }
+
+        if (key == "enabled_holidays")
+        {
+            for (int32 i = 1; i < line.GetArgSize(); ++i)
+            {
+                string holidayKey = line.GetString(i);
+                if (!holidayKey.empty())
+                    enabledHolidays[holidayKey] = true;
+            }
+        }
+
+        if (key == "fossil_spawn_seconds")
+        {
+            if (line.Require(1))
+            {
+                fossilSpawnSeconds = line.GetUInt(1, 500);
+            }
+        }
+
+        if (key == "fossil_spawn_min_world")
+        {
+            if (line.Require(1))
+            {
+                fossilSpawnMinWorldCount = line.GetUInt(1, 6);
+            }
+        }
+
+        if (key == "world_import_export_save_path")
+        {
+            if (line.Require(1))
+            {
+                worldImportExportSavePath = line.GetString(1);
+            }
+        }
+
+        if (key == "filter_jammed_worlds")
+        {
+            if (line.Require(1))
+            {
+                filterJammedWorlds = (line.GetUInt(1) == 1);
+            }
+        }
     }
 
+    return true;
+}
+
+bool GameConfig::LoadNews(const string& filePath)
+{
+    if (filePath.empty())
+        return false;
+
+    File file;
+    if (!file.Open(filePath))
+        return false;
+
+    gameNews.resize(file.GetSize());
+
+    if (file.Read(gameNews.data(), file.GetSize()) != file.GetSize())
+    {
+        file.Close();
+        return false;
+    }
+
+    file.Close();
     return true;
 }
 
@@ -378,4 +446,13 @@ void GameConfig::AddServer(uint16 serverID, const string& lanIP, const string& w
 {
     servers.emplace_back(ServerConfigSchema{serverID, lanIP, wanIP, (uint16)(tcpStart + serverID),
                                             (uint16)(udpStart + serverID), serverType});
+}
+
+bool GameConfig::IsHolidayEnabled(const string& key)
+{
+    auto it = enabledHolidays.find(key);
+    if (it != enabledHolidays.end())
+        return it->second;
+
+    return false;
 }

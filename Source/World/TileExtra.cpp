@@ -71,8 +71,14 @@ float GetTileExtraMinGameVersion(uint8 extraType)
     return 0.92f;
 }
 
-uint8 GetTileExtraTypeByItemType(uint8 itemType)
+uint8 GetTileExtraTypeByItem(int32 itemID, uint8 itemType)
 {
+    switch (itemID)
+    {
+        case ITEM_ID_DATA_BEDROCK:
+            return TILE_EXTRA_TYPE_BEDROCK;
+    }
+
     switch (itemType)
     {
         case ITEM_TYPE_USER_DOOR:
@@ -215,6 +221,9 @@ TileExtra* CreateTileExtra(uint8 type)
 
         case TILE_EXTRA_TYPE_PET_TRAINER:
             return new TileExtra_PetTrainer();
+
+        case TILE_EXTRA_TYPE_BEDROCK:
+            return new TileExtra_Bedrock();
 
         case TILE_EXTRA_TYPE_SUCKER:
             return new TileExtra_Sucker();
@@ -858,4 +867,40 @@ void TileExtra_Sucker::Serialize(MemoryBuffer& memBuffer, bool write, bool datab
     memBuffer.ReadWrite(isPlanting, write);
 
     memBuffer.ReadWrite(unk, write);
+}
+
+void TileExtra_Bedrock::Serialize(MemoryBuffer& memBuffer, bool write, bool database, TileInfo* pTile,
+                                  int16 worldVersion)
+{
+    TileExtra::Serialize(memBuffer, write);
+    memBuffer.ReadWrite(unk0, write);
+
+    if (database)
+    {
+        memBuffer.ReadWrite(unk1, write);
+        if (worldVersion > 18)
+        {
+            memBuffer.ReadWrite(unk2, write);
+            memBuffer.ReadWrite(unk3, write);
+            memBuffer.ReadWrite(unk4, write);
+        }
+
+        if (worldVersion > 17)
+        {
+            memBuffer.ReadWrite(unk5, write);
+        }
+    }
+
+    if (worldVersion > 18)
+    {
+        memBuffer.ReadWrite(unk6, write);
+        memBuffer.ReadWrite(unk7, write);
+        memBuffer.ReadWrite(unk8, write);
+    }
+
+    if (worldVersion > 19)
+    {
+        memBuffer.ReadWrite(unk9, write);
+        memBuffer.ReadWrite(unk10, write);
+    }
 }

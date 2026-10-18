@@ -7,6 +7,7 @@
 #include "Precompiled.h"
 #include "World.h"
 #include "World/WorldBalancer.h"
+#include "WorldEventManager.h"
 #include <queue>
 #include <unordered_set>
 
@@ -24,6 +25,9 @@ public:
     }
 
 public:
+    string WorldBalancerSelectBestActiveWorld(const string& worldName) override;
+
+public:
     void Kill();
 
     void HandleWorldInit(TCPPacketReader& reader);
@@ -37,13 +41,18 @@ public:
     World* GetWorldByInstanceID(uint32 worldID);
     World* GetWorldByName(const string& worldName);
     World* GetWorldByDatabaseID(uint32 databaseID);
+    World* GetRandomWorld();
     void AddWorld(World* pWorld);
 
     void OnHandleGamePacket(NetworkEvent& event);
     void SaveAllToDatabase();
 
     void SendWorldMenuRequest(GamePlayer* pPlayer);
+
     uint32 GetWorldCount() { return m_worlds.size(); }
+    std::unordered_map<uint32, World*>& GetWorlds() { return m_worlds; }
+
+    WorldEventManager& GetSpecialEventManager() { return m_specialEventManager; }
 
 private:
     template <class T> void RegisterPacketEvent(eGamePacketType type)
@@ -57,10 +66,13 @@ private:
 
 private:
     Timer m_lastWorldUpdateTime;
+    Timer m_fossilSpawnTimer;
     std::unordered_map<uint32, World*> m_worlds;
     std::unordered_map<string, uint32> m_worldNameCache;
     std::queue<World*> m_pendingLoad;
     EventDispatcher<eGamePacketType, GamePlayer*, World*, GameUpdatePacket*> m_packetEvents;
+
+    WorldEventManager m_specialEventManager;
 
     struct WorldListElement
     {

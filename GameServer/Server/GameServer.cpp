@@ -3,7 +3,9 @@
 #include "../Context.h"
 #include "../Dialog/DialogManager.h"
 #include "../Player/GamePlayer.h"
+#include "../Player/PlayerManager.h"
 #include "../World/WorldManager.h"
+#include "Holiday/HolidayManager.h"
 #include "IO/Log.h"
 #include "Item/ItemInfoManager.h"
 #include "MasterBroadway.h"
@@ -11,12 +13,15 @@
 #include "Packet/NetPacket.h"
 #include "Packet/PacketUtils.h"
 #include "Player/RoleManager.h"
+#include "Server/StatsManager.h"
 #include "UserCacheManager.h"
 
 #include "../Event/UDP/GameMessage/GameMessage_Input.h"
 #include "../Event/UDP/GameMessage/GameMessage_Item.h"
 #include "../Event/UDP/GameMessage/GameMessage_Player.h"
-#include "../Event/UDP/GameMessage/GameMessage_Trade.h"
+
+#include "../Holiday/AutoHoliday_Comet.h"
+#include "../Holiday/AutoHoliday_Wolf.h"
 
 static const uint32 SMALL_PACKET_SIZE = 80;
 static const uint32 MED_PACKET_SIZE = 800;
@@ -28,7 +33,7 @@ static const uint32 MED_PACKET_COUNT = 256;
 static const uint32 LARGE_PACKET_COUNT = 128;
 static const uint32 HUGE_PACKET_COUNT = 10;
 
-GameServer::GameServer()
+GameServer::GameServer() : m_serverShutdownTimeSec(-1)
 {
     PacketPoolConfig cfg;
     cfg.smallPacketSize = SMALL_PACKET_SIZE;
@@ -188,9 +193,20 @@ void GameServer::RegisterEvents()
     RegisterMessagePacket<GameMessage_Store>("store"_hash);
     RegisterMessagePacket<GameMessage_Respawn>("respawn"_hash);
     RegisterMessagePacket<GameMessage_RespawnSpike>("respawn_spike"_hash);
+    RegisterMessagePacket<GameMessage_Info>("info"_hash);
+    RegisterMessagePacket<GameMessage_ModTrade>("mod_trade"_hash);
+    RegisterMessagePacket<GameMessage_TradeLock>("trade_lock"_hash);
+    RegisterMessagePacket<GameMessage_TradeAccept>("trade_accept"_hash);
+    RegisterMessagePacket<Gamemessage_RemTrade>("rem_trade"_hash);
+    RegisterMessagePacket<GameMessage_TradeStarted>("trade_started"_hash);
+    RegisterMessagePacket<GameMessage_TradeCancel>("trade_cancel"_hash);
 
     GetCommandManager()->RegisterAllCommands();
+    GetCommandManager()->BuildHelpCache();
     GetDialogManager()->RegisterAllDialogs();
+
+    GetHolidayManager()->RegisterCustomHoliday<AutoHoliday_Comet>("comet");
+    GetHolidayManager()->RegisterCustomHoliday<AutoHoliday_Wolf>("wolf");
 }
 
 void GameServer::UpdateGameLogic(uint64 maxTimeMS)
@@ -199,6 +215,53 @@ void GameServer::UpdateGameLogic(uint64 maxTimeMS)
     GetPlayerManager()->UpdatePlayers();
     GetWorldManager()->UpdateWorlds();
     GetUserCacheManager()->Update();
+    GetStatsManager()->Update();
+    GetHolidayManager()->Update();
+
+    if (m_serverShutdownTimeSec != -1 && m_serverShutdownAnnounceTimer.IsPassed())
+    {
+        int64 remainingMs = Max(0, (m_serverShutdownTimeSec * 1000) - (int64)m_serverShutdownTimer.GetElapsedTime());
+
+        uint32 remainSeconds = (uint32)(remainingMs / 1000);
+        uint32 remainMinutes = remainSeconds / 60;
+
+        uint32 nextDelayAnnounceMS = 1000;
+        string message = "`4Global System Message``: Restarting server for update in `4";
+
+        if (remainMinutes > 0)
+        {
+            message += ToString(remainMinutes) + "`` minutes";
+            nextDelayAnnounceMS = 60 * 1000;
+
+            if (remainMinutes == 1)
+            {
+                nextDelayAnnounceMS = 30 * 1000;
+                GetPlayerManager()->BroadcastMusic("mp3/suspended.mp3");
+            }
+        }
+        else if (remainSeconds > 0)
+        {
+            message += ToString(remainSeconds) + "`` seconds";
+            if (remainSeconds > 4)
+                nextDelayAnnounceMS = 10 * 1000;
+            else
+                nextDelayAnnounceMS = 1000;
+        }
+        else
+        {
+            message += "ZERO`` seconds! Should be back up in a minute or so. BYE!";
+            GetPlayerManager()->BroadcastMessage(message);
+
+            m_serverShutdownTimeSec = -1;
+            GetContext()->Shutdown();
+        }
+
+        if (remainSeconds != 0)
+        {
+            GetPlayerManager()->BroadcastMessage(message);
+            m_serverShutdownAnnounceTimer.Set(nextDelayAnnounceMS);
+        }
+    }
 }
 
 void GameServer::Update()
@@ -393,6 +456,18 @@ void GameServer::ForceSaveEverything()
 {
     GetPlayerManager()->SaveAllToDatabase();
     GetWorldManager()->SaveAllToDatabase();
+}
+
+void GameServer::ShutdownServersAfterSeconds(int32 timeSec)
+{
+    if (timeSec == -1)
+    {
+        GetPlayerManager()->BroadcastMusic("");
+    }
+
+    m_serverShutdownTimeSec = timeSec;
+    m_serverShutdownTimer.Reset();
+    m_serverShutdownAnnounceTimer.Set(0);
 }
 
 void GameServer::Kill()

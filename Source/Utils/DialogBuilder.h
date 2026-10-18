@@ -46,6 +46,7 @@ public:
     DialogBuilder& AddInnerImageLabelButton(const string& buttonID, const string& label, const string& texture,
                                             int32 textureX, int32 textureY);
     DialogBuilder& AddButtonWithIcon(const string& buttonID, const string& label, int32 itemID);
+    DialogBuilder& AddLabelWithEleIcon(const string& label, int32 itemID, int32 elementType, bool big = false);
 
     DialogBuilder& EmbedData(const string& name, const string& value);
 

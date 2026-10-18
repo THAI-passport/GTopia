@@ -265,7 +265,7 @@ bool PlayerLoginDetail::Serialize(ParsedTextPacket<40>& packet, Player* pPlayer,
         }
     }
 
-    LOGGER_LOG_INFO("[LOGIN_SUCCESS] GrowID: '%s', Ver: %.2f, Platform: %d, Country: %s, IP: %s",
+    LOGGER_LOG_INFO("[LoginDetail Check] GrowID: '%s', Ver: %.2f, Platform: %d, Country: %s, IP: %s",
                     tankIDName.empty() ? requestedName.c_str() : tankIDName.c_str(), gameVersion, platformType,
                     country.c_str(), playerIP.data());
 

@@ -3,6 +3,13 @@
 #include "../Precompiled.h"
 #include "../Utils/GameConfig.h"
 
+struct ActiveBalancedWorld
+{
+    string worldName;
+    uint32 id;
+    uint32 userCount;
+};
+
 class WorldBalancer
 {
 public:
@@ -10,21 +17,24 @@ public:
     ~WorldBalancer();
 
 public:
-    virtual bool GetBalancedWorldName(const string& worldName, string& out);
+    virtual string WorldBalancerSelectBestActiveWorld(const string& worldName);
 
 public:
-    void SetBalancerEnabled(bool enabled) { m_enabled = enabled; };
-    bool IsBalancerEnabled() const { return m_enabled; };
+    bool IsBalancerEnabled() const;
+    void SetBalancerGameConfig(GameConfig* pConfig) { m_pGameConfig = pConfig; }
 
+    void RegisterBalancedWorldsFromConfig();
+    string BalancedWorldName(const string& inputName);
+    WorldBalanceConfigSchema* GetBalancedWorldConfig(const string& inputName);
+    uint32 GetBalancedWorldID(const string& inputName);
+    uint32 WorldBalancerUpdateUserCount(const string& inputName, uint32 userCount);
+
+private:
     void RegisterBalancedWorld(WorldBalanceConfigSchema& balancer);
-
-    WorldBalanceConfigSchema* GetBalancerByNameMatch(const string& inputName);
-    bool IsBalancedWorld(const string& worldName);
-    string GetBalancedFinalWorldName(const string& worldName);
-    // bool GetBalancedName(const string& worldName, string& out);
 
 private:
     bool m_enabled;
-    std::unordered_map<string, WorldBalanceConfigSchema> m_exactWorlds;
-    std::unordered_map<string, WorldBalanceConfigSchema> m_compactWorlds;
+    GameConfig* m_pGameConfig;
+    std::unordered_map<string, WorldBalanceConfigSchema> m_worlds;
+    std::unordered_map<string, ActiveBalancedWorld> m_activeWorlds;
 };
