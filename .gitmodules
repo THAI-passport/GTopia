@@ -4,3 +4,6 @@
 [submodule "ThirdParty/asmjit"]
 	path = ThirdParty/asmjit
 	url = https://github.com/asmjit/asmjit
+[submodule "ThirdParty/luajit"]
+	path = ThirdParty/luajit
+	url = https://luajit.org/git/luajit.git
