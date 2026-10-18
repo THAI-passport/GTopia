@@ -1,0 +1,135 @@
+diff --git a/Source/Database/DatabaseManager.h b/Source/Database/DatabaseManager.h
+index c613ff8..7271911 100644
+--- a/Source/Database/DatabaseManager.h
++++ b/Source/Database/DatabaseManager.h
+@@ -3,6 +3,7 @@
+ #include "DatabaseResult.h"
+ #include "Precompiled.h"
+ #include <mysql.h>
++#include <errmsg.h>
+ 
+ struct DatabaseConnectConfig
+ {
+diff --git a/Source/Database/DatabaseResult.cpp b/Source/Database/DatabaseResult.cpp
+index 65ce56d..c658ece 100644
+--- a/Source/Database/DatabaseResult.cpp
++++ b/Source/Database/DatabaseResult.cpp
+@@ -46,7 +46,9 @@ uint32 DatabaseResult::GetSizeOfField(MYSQL_FIELD& field)
+ {
+     switch (field.type)
+     {
++#if !defined(MARIADB_VERSION_ID) && !defined(MARIADB_BASE_VERSION)
+         case MYSQL_TYPE_BOOL:
++#endif
+         case MYSQL_TYPE_TINY:
+             return sizeof(int8);
+         case MYSQL_TYPE_SHORT:
+diff --git a/Source/Database/PreparedParam.cpp b/Source/Database/PreparedParam.cpp
+index 5ae2528..c20b8f1 100644
+--- a/Source/Database/PreparedParam.cpp
++++ b/Source/Database/PreparedParam.cpp
+@@ -40,7 +40,7 @@ void PreparedParam::SetBinary(const uint8 index, const void* value, uint32 size)
+     m_binds[index].length = &m_lengths[index];
+ 
+     m_nulls[index] = (value == nullptr);
+-    m_binds[index].is_null = (bool*)&m_nulls[index];
++    m_binds[index].is_null = (decltype(MYSQL_BIND::is_null))&m_nulls[index];
+ }
+ 
+ void PreparedParam::SetBinary(const uint8 index, const string& value)
+@@ -62,7 +62,7 @@ void PreparedParam::SetString(const uint8 index, const string& value)
+     m_binds[index].length = &m_lengths[index];
+ 
+     m_nulls[index] = false;
+-    m_binds[index].is_null = (bool*)&m_nulls[index];
++    m_binds[index].is_null = (decltype(MYSQL_BIND::is_null))&m_nulls[index];
+ }
+ 
+ void PreparedParam::Load(MYSQL_FIELD* pFields)
+@@ -80,6 +80,6 @@ void PreparedParam::Load(MYSQL_FIELD* pFields)
+         m_binds[i].buffer = m_buffers[i].data();
+         m_binds[i].buffer_length = m_buffers[i].size();
+         m_binds[i].length = &m_lengths[i];
+-        m_binds[i].is_null = (bool*)&m_nulls[i];
++        m_binds[i].is_null = (decltype(MYSQL_BIND::is_null))&m_nulls[i];
+     }
+ }
+\ No newline at end of file
+diff --git a/Source/Database/PreparedParam.h b/Source/Database/PreparedParam.h
+index 4dfea81..3ac74bc 100644
+--- a/Source/Database/PreparedParam.h
++++ b/Source/Database/PreparedParam.h
+@@ -67,7 +67,7 @@ public:
+         m_binds[index].is_unsigned = std::is_unsigned<T>::value;
+ 
+         m_nulls[index] = false;
+-        m_binds[index].is_null = (bool*)&m_nulls[index];
++        m_binds[index].is_null = (decltype(MYSQL_BIND::is_null))&m_nulls[index];
+     }
+ 
+     void Load(MYSQL_FIELD* pFields);
+diff --git a/Source/Database/Table/BanDBTable.cpp b/Source/Database/Table/BanDBTable.cpp
+index 3d85a32..6adda04 100644
+--- a/Source/Database/Table/BanDBTable.cpp
++++ b/Source/Database/Table/BanDBTable.cpp
+@@ -81,7 +81,8 @@ void DatabaseBanAddExec(DatabasePool* pPool, uint32 userID, uint32 adminUserID,
+                         uint32 durationMin, const string& reason, const string& ip, int32 hash, int32 platformType,
+                         const string& mac, const string& gid, const string& sid, const string& vid, QueryRequest& req)
+ {
+-    DatabaseBanRemoveExec(pPool, modType, mac, gid, sid, vid, ip, QueryRequest{0});
++    QueryRequest removeReq{0};
++    DatabaseBanRemoveExec(pPool, modType, mac, gid, sid, vid, ip, removeReq);
+ 
+     string query =
+         "INSERT INTO Bans SET UserID = ?, BannerID = ?, PunishType = ?, ModType = ?, BannedTime = NOW(), "
+diff --git a/Source/Math/Math.h b/Source/Math/Math.h
+index ab9b7f0..6d4ed45 100644
+--- a/Source/Math/Math.h
++++ b/Source/Math/Math.h
+@@ -21,7 +21,7 @@ inline T Round(T x) { return floor(x + T(0.5)); }
+ template <class T> T Mod(T x, T y) { return fmod(x, y); }
+ 
+ template <class T>
+-inline bool IsFinite(T d) { return isfinite(d); }
++inline bool IsFinite(T d) { return std::isfinite(d); }
+ 
+ template<typename T>
+ inline T Clamp(T value, T min, T max)
+diff --git a/Source/OS/Posix/PosixPrecompiled.cpp b/Source/OS/Posix/PosixPrecompiled.cpp
+index fc6c361..20f567f 100644
+--- a/Source/OS/Posix/PosixPrecompiled.cpp
++++ b/Source/OS/Posix/PosixPrecompiled.cpp
+@@ -157,7 +157,7 @@ void GetTimeLocal(time_t* currentTime, int32* month, int32* day, int32* year, in
+     tm timeInfo;
+     time_t curTime = currentTime ? *currentTime : std::time(nullptr);
+ 
+-    localtime_r(&currentTime, &timeInfo);
++    localtime_r(&curTime, &timeInfo);
+ 
+     if (month)
+         *month = timeInfo.tm_mon + 1;
+diff --git a/Source/Player/PlayerPlayMod.cpp b/Source/Player/PlayerPlayMod.cpp
+index 0f0c8d8..72018da 100644
+--- a/Source/Player/PlayerPlayMod.cpp
++++ b/Source/Player/PlayerPlayMod.cpp
+@@ -149,7 +149,8 @@ void GivePlayerPlayModAndOther(DatabasePool* pPool, PlayerPlayMod& playMod, int3
+ 
+             if (modEnum == PLAYMOD_TYPE_BAN)
+             {
+-                DatabaseBanRemoveExec(pPool, playModType, mac, gid, sid, vid, ip, QueryRequest{0});
++                QueryRequest banReq{0};
++                DatabaseBanRemoveExec(pPool, playModType, mac, gid, sid, vid, ip, banReq);
+             }
+ 
+             statusMsg = "Removed PlayMod " + ToString(playModType) + " from " + targetName;
+@@ -201,8 +202,9 @@ void GivePlayerPlayModAndOther(DatabasePool* pPool, PlayerPlayMod& playMod, int3
+     if (punishType != PLAYER_PUNISH_SOFT &&
+         (modEnum == PLAYMOD_TYPE_BAN || modEnum == PLAYMOD_TYPE_CURSE || modEnum == PLAYMOD_TYPE_DUCT_TAPE))
+     {
++        QueryRequest banAddReq{0};
+         DatabaseBanAddExec(pPool, targetUserID, adminUserID, punishType, playModType, durationMin, reason, ip, hash,
+-                           platformType, mac, gid, sid, vid, QueryRequest{0});
++                           platformType, mac, gid, sid, vid, banAddReq);
+     }
+ 
+     statusMsg = "Applied PlayMod " + ToString(playModType) + " to " + targetName + " for " + ToString(durationMin) +
